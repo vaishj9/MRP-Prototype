@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Riverside Fitness - Staff Portal</title>
+<style>
+:root{
+  --bg:#f3f6f7; --card:#ffffff; --ink:#14232b; --muted:#5d6f78; --line:#dbe3e7;
+  --brand:#0b6e6e; --brand-dark:#084f50; --brand-soft:#e1f1f0;
+  --high:#c8432b; --high-soft:#fbe7e2; --med:#b7791f; --med-soft:#fbf0d9;
+  --low:#2f855a; --low-soft:#e0f3e8; --new:#2b6cb0; --new-soft:#e3eefa;
+  --radius:10px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+header{background:var(--brand-dark);color:#fff;padding:12px 20px;display:flex;flex-wrap:wrap;align-items:center;gap:14px}
+header h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.2px}
+header .sub{font-size:12px;opacity:.75}
+.spacer{flex:1}
+.pill{font-size:12px;padding:3px 10px;border-radius:99px;background:rgba(255,255,255,.16)}
+.pill.live{background:#2f855a}
+.pill.demo{background:#b7791f}
+header button{background:rgba(255,255,255,.14);color:#fff;border:0;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:12px}
+header button:hover{background:rgba(255,255,255,.26)}
+nav{background:#fff;border-bottom:1px solid var(--line);display:flex;gap:2px;padding:0 14px;overflow-x:auto}
+nav button{background:none;border:0;padding:13px 14px;font-size:14px;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+nav button.on{color:var(--brand-dark);border-bottom-color:var(--brand);font-weight:600}
+main{max-width:1180px;margin:0 auto;padding:20px 16px 60px}
+h2{margin:0 0 4px;font-size:20px}
+.lead{color:var(--muted);margin:0 0 18px}
+.grid{display:grid;gap:14px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:14px}
+.two{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+.card h3{margin:0 0 10px;font-size:14px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.kpi .v{font-size:28px;font-weight:700;line-height:1.1}
+.kpi .l{font-size:12px;color:var(--muted);margin-top:4px}
+.kpi.flash{animation:flash 1.4s}
+@keyframes flash{0%{background:#fff6cc}100%{background:#fff}}
+.bar{display:grid;grid-template-columns:minmax(120px,38%) 1fr 44px;gap:8px;align-items:center;margin:7px 0;font-size:13px}
+.bar .t{height:14px;background:#eaf0f2;border-radius:4px;overflow:hidden}
+.bar .t i{display:block;height:100%;background:var(--brand);border-radius:4px}
+.bar .t i.hot{background:var(--high)}
+.bar .n{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+.stack{display:flex;height:22px;border-radius:5px;overflow:hidden;margin:6px 0 10px}
+.stack i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted)}
+.legend b{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.tag{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:99px}
+.tag.High{background:var(--high-soft);color:var(--high)}
+.tag.Medium{background:var(--med-soft);color:var(--med)}
+.tag.Low{background:var(--low-soft);color:var(--low)}
+.tag.New{background:var(--new-soft);color:var(--new)}
+  .tag.No\ data{background:#eef1f3;color:var(--muted)}
+.tag.x{background:#eef1f3;color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-weight:600;color:var(--muted);padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:7px 8px;border-bottom:1px solid #edf1f3}
+.tw{overflow-x:auto}
+label{display:block;font-size:12.5px;font-weight:600;margin:12px 0 4px;color:var(--muted)}
+input,select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font:inherit;background:#fff;color:var(--ink)}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:560px){.row2{grid-template-columns:1fr}}
+.btn{background:var(--brand);color:#fff;border:0;border-radius:7px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer;margin-top:16px}
+.btn:hover{background:var(--brand-dark)}
+.btn.ghost{background:#fff;color:var(--brand-dark);border:1px solid var(--brand)}
+.btn.sm{padding:5px 10px;margin:0;font-size:12.5px}
+.btn.warn{background:var(--high)}
+.form{max-width:560px}
+.note{font-size:12.5px;color:var(--muted);margin-top:8px}
+.ok{background:var(--low-soft);border:1px solid #b7e1c8;border-radius:8px;padding:12px 14px;margin-top:14px}
+.err{background:var(--high-soft);border:1px solid #f1bbb0;border-radius:8px;padding:10px 14px;margin-top:14px;color:#7a2616}
+.feed{list-style:none;margin:0;padding:0;font-size:13px}
+.feed li{padding:7px 0;border-bottom:1px solid #edf1f3;display:flex;gap:8px}
+.feed time{color:var(--muted);font-size:11.5px;white-space:nowrap;min-width:56px}
+.empty{color:var(--muted);font-size:13px;padding:6px 0}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#14232b;color:#fff;padding:10px 16px;border-radius:8px;font-size:13.5px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:9}
+#toast.show{opacity:1}
+dialog{border:0;border-radius:12px;padding:20px;max-width:520px;width:92%;box-shadow:0 12px 40px rgba(0,0,0,.3)}
+dialog::backdrop{background:rgba(10,25,30,.5)}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12.5px;color:var(--muted);margin-bottom:16px}
+.flow span{background:#fff;border:1px solid var(--line);border-radius:6px;padding:3px 8px}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>Riverside Fitness - Staff Portal</h1><div class="sub">Management dashboard, front desk and payroll (office use)</div></div>
+  <div class="spacer"></div>
+  <span id="mode" class="pill">...</span>
+  <span id="synced" class="pill">not synced</span>
+  <button id="btnSettings" type="button">Connect Google Sheet</button>
+  <button id="btnReset" type="button" hidden>Reset demo data</button>
+</header>
+<nav id="nav"></nav>
+<main id="view"></main>
+<div id="toast" role="status"></div>
+
+<dialog id="dlg">
+  <h2>Connect your Google Sheet</h2>
+  <p class="note">Paste the Web App URL from Google Apps Script (Deploy &gt; Manage deployments). Leave empty to use demo mode, which saves data in this browser only.</p>
+  <label for="apiUrl">Web App URL</label>
+  <input id="apiUrl" placeholder="https://script.google.com/macros/s/.../exec">
+  <div class="note" id="testOut"></div>
+  <button class="btn" id="saveApi" type="button">Save and reload</button>
+  <button class="btn ghost" id="testApi" type="button">Test connection</button>
+  <button class="btn ghost" id="closeDlg" type="button">Close</button>
+</dialog>
+
+<script src="config.js"></script>
+<script src="seed.js"></script>
+<script>
+/* ============ settings & storage ============ */
+const LS = {
+  get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+};
+const API = (LS.get('rf_api') || window.RF_API_URL || '').trim();
+let KEY = LS.get('rf_key') || '';
+const LIVE = !!API;
+let DB = null;
+let view = 'dashboard';
+const TODAY = new Date().toISOString().slice(0,10);
+
+const PLANS = {Basic:35, Standard:69, Premium:120};
+const REASONS = ['Price','Moved Away','Other','Lack of Class Variety','Health/Personal Reasons',"Couldn't Book Classes Across Locations",'Lost or Incorrect Manual Record','Scheduling/Booking Frustration'];
+const ID_RULES = {Members:['member_id','MEM-',4], Bookings:['booking_id','BKG-',5], CheckIns:['checkin_id','CHK-',6], Payroll:['payroll_id','PAY-',5]};
+
+/* ============ data layer (Google Sheet or browser demo) ============ */
+async function loadDB(){
+  if(LIVE){
+    const r = await fetch(API + '?key=' + encodeURIComponent(KEY));
+    DB = await r.json();
+    if(!DB.Members) throw new Error('bad key');
+  } else {
+    let s = LS.get('rf_db');
+    DB = s ? JSON.parse(s) : JSON.parse(JSON.stringify(window.SEED));
+  }
+  document.getElementById('synced').textContent = 'synced ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+function saveDemo(){ LS.set('rf_db', JSON.stringify(DB)); }
+function nextId(tab){
+  const [col,pre,pad] = ID_RULES[tab];
+  const mx = Math.max(0, ...DB[tab].map(r => Number(String(r[col]).replace(/\D/g,'')) || 0));
+  return pre + String(mx+1).padStart(pad,'0');
+}
+async function post(req){
+  const r = await fetch(API, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({...req, key:KEY})});
+  const j = await r.json();
+  if(!j.ok) throw new Error(j.error || 'Write failed');
+  return j;
+}
+async function append(tab,row){
+  if(LIVE){ const j = await post({action:'append',tab,row}); await loadDB(); return j.row; }
+  if(ID_RULES[tab]) row[ID_RULES[tab][0]] = nextId(tab);
+  DB[tab].push(row); saveDemo(); return row;
+}
+async function update(tab,key,value,changes){
+  if(LIVE){ await post({action:'update',tab,key,value,changes}); await loadDB(); return; }
+  const r = DB[tab].find(x => String(x[key]) === String(value));
+  if(r) Object.assign(r, changes); saveDemo();
+}
+async function inc(tab,key,value,field,by){
+  if(LIVE){ await post({action:'inc',tab,key,value,field,by}); await loadDB(); return; }
+  const r = DB[tab].find(x => String(x[key]) === String(value));
+  if(r) r[field] = (Number(r[field])||0) + by; saveDemo();
+}
+
+/* ============ helpers ============ */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num = v => Number(v) || 0;
+const pct = (a,b) => b ? (100*a/b).toFixed(1)+'%' : '-';
+const locName = id => { const l = DB.Locations.find(x => x.location_id === id); return l ? l.location_name.replace('Riverside Fitness - ','') : id; };
+const locSys = id => { const l = DB.Locations.find(x => x.location_id === id); return l ? l.system_type : ''; };
+const member = id => DB.Members.find(m => String(m.member_id).toUpperCase() === String(id).trim().toUpperCase());
+const isActive = m => m.is_active_member === 'Yes';
+function daysSince(d){ return (new Date(TODAY) - new Date(String(d).slice(0,10))) / 864e5; }
+function tier(m){
+  if(daysSince(m.join_date) <= 14) return 'New';
+  if(m.monthly_checkins === '' || m.monthly_checkins == null) return 'No data';
+  const n = num(m.monthly_checkins);
+  return n < 4 ? 'High' : n >= 12 ? 'Low' : 'Medium';
+}
+function toast(t){ const e = $('#toast'); e.textContent = t; e.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(()=>e.classList.remove('show'), 2800); }
+function nextDates(dow, n){
+  const names = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const out = []; const d = new Date(TODAY + 'T12:00:00');
+  for(let i=0; out.length<n && i<30; i++){
+    if(names[d.getDay()] === dow) out.push(d.toISOString().slice(0,10));
+    d.setDate(d.getDate()+1);
+  }
+  return out;
+}
+function classLabel(c){ return `${c.class_name} - ${c.day_of_week.slice(0,3)} ${c.class_time_slot.split(' (')[0]} - ${locName(c.location_id)} (cap ${c.class_capacity})`; }
+function opts(arr, sel){ return arr.map(([v,t]) => `<option value="${esc(v)}"${v===sel?' selected':''}>${esc(t)}</option>`).join(''); }
+
+/* ============ metrics ============ */
+function metrics(){
+  const M = DB.Members, act = M.filter(isActive), gone = M.filter(m => !isActive(m));
+  const caps = Object.fromEntries(DB.Classes.map(c => [c.class_id, num(c.class_capacity)]));
+  const sess = {}; let attended = 0;
+  DB.CheckIns.forEach(c => {
+    const k = c.class_id + '|' + String(c.checkin_date).slice(0,10);
+    sess[k] = 1;
+    if(c.attended === 'Yes') attended++;
+  });
+  const capSum = Object.keys(sess).reduce((a,k) => a + (caps[k.split('|')[0]]||0), 0);
+  const tiers = {High:0, Medium:0, Low:0, New:0, 'No data':0};
+  act.forEach(m => tiers[tier(m)]++);
+  const reasons = {};
+  gone.forEach(m => { reasons[m.cancellation_reason] = (reasons[m.cancellation_reason]||0)+1; });
+  const staffLoc = Object.fromEntries(DB.Staff.map(s => [s.staff_id, s.location_id]));
+  const pay = {};
+  DB.Payroll.forEach(p => {
+    const sys = locSys(staffLoc[p.staff_id]) || '?';
+    pay[sys] = pay[sys] || {n:0, bad:0};
+    pay[sys].n++; if(p.has_manual_entry_error === 'Yes') pay[sys].bad++;
+  });
+  const payAll = DB.Payroll.reduce((a,p)=>a+(p.has_manual_entry_error==='Yes'?1:0),0);
+  const byLoc = DB.Locations.map(l => ({id:l.location_id, name:locName(l.location_id), sys:l.system_type, n:act.filter(m=>m.location_id===l.location_id).length}));
+  return {total:M.length, active:act.length, gone:gone.length, tiers, reasons, pay, payAll, payN:DB.Payroll.length, byLoc, attended, capSum, sessions:Object.keys(sess).length,
+          todayCheckins: DB.CheckIns.filter(c=>String(c.checkin_date).slice(0,10)===TODAY && c.attended==='Yes').length,
+          todaySignups: M.filter(m=>String(m.join_date).slice(0,10)===TODAY).length};
+}
+
+/* ============ views ============ */
+const VIEWS = {
+  dashboard:'Dashboard', signup:'Sign Up', book:'Book a Class', desk:'Front Desk', payroll:'Payroll', data:'Dataset'
+};
+function renderNav(){
+  $('#nav').innerHTML = Object.entries(VIEWS).map(([k,t]) => `<button type="button" data-v="${k}" class="${k===view?'on':''}">${t}</button>`).join('');
+}
+function go(v){ view = v; renderNav(); render(); window.scrollTo(0,0); if(LIVE && (v==='dashboard'||v==='data')) loadDB().then(()=>{ if(view===v) render(); }).catch(()=>{}); }
+
+let lastKpi = '';
+function viewDashboard(){
+  const m = metrics();
+  const risk = DB.Members.filter(x => isActive(x) && tier(x)==='High').sort((a,b) => num(a.monthly_checkins)-num(b.monthly_checkins));
+  const f = window.__riskLoc || '';
+  const riskRows = risk.filter(x => !f || x.location_id===f).slice(0,12);
+  const maxLoc = Math.max(1, ...m.byLoc.map(l=>l.n));
+  const rs = Object.entries(m.reasons).sort((a,b)=>b[1]-a[1]); const maxR = Math.max(1, ...rs.map(r=>r[1]));
+  const T = m.tiers, tt = Math.max(1, m.active);
+  const feed = [
+    ...DB.Members.filter(x=>x.created_at).map(x=>({t:x.created_at, h:`New member <b>${esc(x.full_name||x.member_id)}</b> joined ${esc(locName(x.location_id))} (${esc(x.membership_type)})`})),
+    ...DB.Bookings.filter(x=>x.created_at).map(x=>({t:x.created_at, h:`<b>${esc(x.member_id)}</b> ${x.status==='Waitlisted'?'joined the waitlist for':'booked'} a class at ${esc(locName(x.class_location_id))}${x.home_location_id!==x.class_location_id?' <span class="tag New">cross-location</span>':''}`})),
+    ...DB.CheckIns.filter(x=>x.created_at).map(x=>({t:x.created_at, h:`<b>${esc(x.member_id)}</b> checked in at ${esc(locName(x.location_id))}`}))
+  ].sort((a,b)=>String(b.t).localeCompare(String(a.t))).slice(0,8);
+  const kp = [
+    ['Active members', m.active, `${m.total} ever signed up`],
+    ['Churn rate', pct(m.gone, m.total), `${m.gone} cancelled`],
+    ['High churn risk', T.High, 'fewer than 4 check-ins / month'],
+    ['Class fill rate', pct(m.attended, m.capSum), `${m.attended} check-ins, ${m.sessions} sessions`],
+    ['Check-ins today', m.todayCheckins, `${m.todaySignups} new sign-ups today`],
+    ['Payroll error rate', pct(m.payAll, m.payN), `${m.payAll} of ${m.payN} pay records`]
+  ];
+  const sig = JSON.stringify(kp.map(k=>k[1]));
+  const changed = lastKpi && sig !== lastKpi; lastKpi = sig;
+  const col = {High:'#c8432b', Medium:'#d69e2e', Low:'#2f855a', New:'#2b6cb0', 'No data':'#b8c4ca'};
+  return `
+  <h2>Management Dashboard</h2>
+  <p class="lead">Everything here is calculated from the shared data source. Sign up a member, book a class or edit the Google Sheet, and these numbers change.</p>
+  <div class="grid kpis">${kp.map(k=>`<div class="card kpi${changed?' flash':''}"><div class="v">${esc(k[1])}</div><div class="l"><b>${esc(k[0])}</b><br>${esc(k[2])}</div></div>`).join('')}</div>
+  <div class="grid two">
+    <div class="card"><h3>Active members by location</h3>
+      ${m.byLoc.map(l=>`<div class="bar"><span>${esc(l.name)} <span class="tag x">${esc(l.sys)}</span></span><span class="t"><i style="width:${100*l.n/maxLoc}%"></i></span><span class="n">${l.n}</span></div>`).join('')}
+    </div>
+    <div class="card"><h3>Churn-risk groups (active members)</h3>
+      <div class="stack">${['High','Medium','Low','New','No data'].map(k=>`<i title="${k}: ${T[k]}" style="width:${100*T[k]/tt}%;background:${col[k]}"></i>`).join('')}</div>
+      <div class="legend">${['High','Medium','Low','New','No data'].map(k=>`<span><b style="background:${col[k]}"></b>${k}: ${T[k]}</span>`).join('')}</div>
+      <p class="note">High = under 4 check-ins a month. Low = 12 or more. New = joined in the last 14 days. No data = no check-in history in the dataset.</p>
+    </div>
+    <div class="card"><h3>Why members cancelled</h3>
+      ${rs.length ? rs.map(([r,n])=>`<div class="bar"><span>${esc(r)}</span><span class="t"><i class="${/across/i.test(r)?'hot':''}" style="width:${100*n/maxR}%"></i></span><span class="n">${n}</span></div>`).join('') : '<div class="empty">No cancellations yet.</div>'}
+    </div>
+    <div class="card"><h3>Payroll errors by location system</h3>
+      ${Object.entries(m.pay).sort((a,b)=>b[1].bad/b[1].n-a[1].bad/a[1].n).map(([s,v])=>`<div class="bar"><span>${esc(s)}</span><span class="t"><i class="${v.bad/v.n>.1?'hot':''}" style="width:${100*v.bad/v.n*2.5}%"></i></span><span class="n">${pct(v.bad,v.n)}</span></div>`).join('')}
+      <p class="note">Pay records entered through the Payroll Module are calculated automatically, so they add no manual errors.</p>
+    </div>
+  </div>
+  <div class="grid two" style="margin-top:14px">
+    <div class="card"><h3>Churn-Risk Alert list</h3>
+      <select id="riskLoc" aria-label="Filter by location" style="max-width:240px;margin-bottom:8px"><option value="">All locations (${risk.length})</option>${opts(DB.Locations.map(l=>[l.location_id,locName(l.location_id)]), f)}</select>
+      <div class="tw"><table><thead><tr><th>Member</th><th>Gym</th><th>Plan</th><th>Check-ins</th><th></th></tr></thead><tbody>
+      ${riskRows.map(x=>`<tr><td>${esc(x.member_id)}${x.full_name?'<br><small>'+esc(x.full_name)+'</small>':''}</td><td>${esc(locName(x.location_id))}</td><td>${esc(x.membership_type)}</td><td><span class="tag High">${num(x.monthly_checkins)}</span></td><td><button class="btn sm ghost" data-desk="${esc(x.member_id)}" type="button">Open</button></td></tr>`).join('') || '<tr><td colspan="5" class="empty">No high-risk members.</td></tr>'}
+      </tbody></table></div>
+    </div>
+    <div class="card"><h3>Live activity</h3>
+      ${feed.length ? `<ul class="feed">${feed.map(f=>`<li><time>${esc(String(f.t).slice(11,19)||String(f.t).slice(0,10))}</time><span>${f.h}</span></li>`).join('')}</ul>` : '<div class="empty">No activity yet. Sign someone up, book a class or check a member in and it will appear here.</div>'}
+    </div>
+  </div>`;
+}
+
+function viewSignup(){
+  return `<h2>Member Sign-Up</h2>
+  <p class="lead">Online sign-up form. A new member is added to the shared data source and appears on the dashboard.</p>
+  <div class="card form" id="signupCard">
+    <label for="f_name">Full name</label><input id="f_name" autocomplete="off">
+    <div class="row2">
+      <div><label for="f_age">Age</label><input id="f_age" type="number" min="14" max="99" value="28"></div>
+      <div><label for="f_gender">Gender</label><select id="f_gender"><option>Female</option><option>Male</option><option>Non-binary</option></select></div>
+    </div>
+    <label for="f_loc">Home gym</label><select id="f_loc">${opts(DB.Locations.map(l=>[l.location_id,locName(l.location_id)]))}</select>
+    <div class="row2">
+      <div><label for="f_plan">Membership plan</label><select id="f_plan">${Object.entries(PLANS).map(([k,v])=>`<option value="${k}">${k} - $${v}/month</option>`).join('')}</select></div>
+      <div><label for="f_tech">Comfort with apps</label><select id="f_tech"><option>High</option><option selected>Medium</option><option>Low</option></select></div>
+    </div>
+    <label for="f_ch">How did you hear about us?</label><select id="f_ch"><option>Online</option><option>Referral</option><option>Walk-in</option><option>Corporate Partner</option></select>
+    <button class="btn" id="doSignup" type="button">Sign up</button>
+    <div id="signupOut"></div>
+  </div>`;
+}
+function ageGroup(a){ return a<30?'18-29':a<45?'30-44':a<60?'45-59':'60+'; }
+
+function viewBook(){
+  const cls = DB.Classes.slice().sort((a,b)=>a.location_id.localeCompare(b.location_id)||a.class_name.localeCompare(b.class_name));
+  return `<h2>Book a Class</h2>
+  <p class="lead">Members can book a class at any location with one Member ID. This is the cross-location booking that members told us was missing.</p>
+  <div class="card form">
+    <label for="b_mid">Member ID</label><input id="b_mid" placeholder="e.g. MEM-0022" autocomplete="off">
+    <label for="b_loc">Location</label><select id="b_loc"><option value="">All locations</option>${opts(DB.Locations.map(l=>[l.location_id,locName(l.location_id)]))}</select>
+    <label for="b_cls">Class</label><select id="b_cls"></select>
+    <label for="b_date">Date</label><select id="b_date"></select>
+    <button class="btn" id="doBook" type="button">Book class</button>
+    <div id="bookOut"></div>
+  </div>`;
+}
+function fillBookClasses(){
+  const loc = $('#b_loc').value;
+  const list = DB.Classes.filter(c => !loc || c.location_id===loc).sort((a,b)=>a.class_name.localeCompare(b.class_name));
+  $('#b_cls').innerHTML = opts(list.map(c=>[c.class_id, classLabel(c)]));
+  fillBookDates();
+}
+function fillBookDates(){
+  const c = DB.Classes.find(x => x.class_id === $('#b_cls').value);
+  $('#b_date').innerHTML = c ? opts(nextDates(c.day_of_week, 4).map(d=>[d, new Date(d+'T12:00:00').toDateString()])) : '';
+}
+
+function viewDesk(){
+  return `<h2>Front Desk</h2>
+  <p class="lead">Check members in, and cancel memberships. Every check-in updates the member's monthly count, their risk group and the dashboard.</p>
+  <div class="card form">
+    <label for="d_mid">Member ID</label>
+    <div style="display:flex;gap:8px"><input id="d_mid" placeholder="e.g. MEM-0022" autocomplete="off" value="${esc(window.__deskMember||'')}"><button class="btn sm" id="doFind" type="button" style="margin:0 0 0 0">Find</button></div>
+  </div>
+  <div id="deskOut" style="margin-top:14px"></div>`;
+}
+function renderDeskMember(){
+  const id = $('#d_mid').value; const m = member(id); const out = $('#deskOut');
+  if(!m){ out.innerHTML = id ? '<div class="err">No member found with that ID.</div>' : ''; return; }
+  const t = tier(m);
+  const open = DB.Bookings.filter(b => b.member_id===m.member_id && b.status!=='Checked-in' && b.status!=='Cancelled');
+  const recent = DB.CheckIns.filter(c=>c.member_id===m.member_id).sort((a,b)=>String(b.checkin_date).localeCompare(String(a.checkin_date))).slice(0,5);
+  out.innerHTML = `<div class="grid two">
+   <div class="card"><h3>Member</h3>
+     <div style="font-size:18px;font-weight:700">${esc(m.full_name||m.member_id)}</div>
+     <div class="note">${esc(m.member_id)} - ${esc(locName(m.location_id))} - ${esc(m.membership_type)} ($${num(m.monthly_fee_usd).toFixed(2)})</div>
+     <p>Status: <span class="tag ${isActive(m)?'Low':'x'}">${isActive(m)?'Active':'Cancelled'}</span> &nbsp; Risk: <span class="tag ${t}">${t}</span><br>Check-ins this month: <b>${num(m.monthly_checkins)}</b></p>
+     ${isActive(m) ? `<label for="d_reason">Cancel membership - reason</label><select id="d_reason">${opts(REASONS.map(r=>[r,r]))}</select><button class="btn sm warn" id="doCancel" type="button" style="margin-top:8px">Cancel membership</button>` : `<div class="note">Cancelled on ${esc(m.cancellation_date)}: ${esc(m.cancellation_reason)}</div>`}
+   </div>
+   <div class="card"><h3>Check in</h3>
+     ${isActive(m) ? `
+     ${open.length ? `<div class="tw"><table><tbody>${open.map(b=>{const c=DB.Classes.find(x=>x.class_id===b.class_id)||{};return `<tr><td>${esc(c.class_name||b.class_id)}<br><small>${esc(b.class_date)} - ${esc(locName(b.class_location_id))} - ${esc(b.status)}</small></td><td><button class="btn sm" data-ci="${esc(b.booking_id)}" type="button">Check in</button></td></tr>`}).join('')}</tbody></table></div>` : '<div class="empty">No open bookings.</div>'}
+     <label for="d_walk">Walk-in to a class today</label>
+     <select id="d_walk">${opts(DB.Classes.map(c=>[c.class_id, classLabel(c)]))}</select>
+     <button class="btn sm" id="doWalk" type="button" style="margin-top:8px">Check in</button>` : '<div class="empty">Cancelled members cannot check in.</div>'}
+     <h3 style="margin-top:16px">Recent check-ins</h3>
+     ${recent.map(c=>`<div class="note">${esc(String(c.checkin_date).slice(0,10))} - ${esc(c.class_id)} - ${esc(locName(c.location_id))}</div>`).join('') || '<div class="empty">None yet.</div>'}
+   </div></div>`;
+}
+
+function viewPayroll(){
+  const staffLoc = Object.fromEntries(DB.Staff.map(s=>[s.staff_id,s.location_id]));
+  const rows = DB.Payroll.slice().sort((a,b)=>String(b.pay_period_month).localeCompare(String(a.pay_period_month))||String(b.payroll_id).localeCompare(String(a.payroll_id))).slice(0,10);
+  return `<h2>Payroll Module</h2>
+  <p class="lead">Hours go in once and pay is calculated automatically, which replaces the paper and spreadsheet entry that caused most payroll errors.</p>
+  <div class="grid two">
+   <div class="card form">
+    <label for="p_staff">Staff member</label><select id="p_staff">${opts(DB.Staff.map(s=>[s.staff_id,`${s.staff_id} - ${s.role} - ${locName(s.location_id)} ($${num(s.hourly_rate_usd).toFixed(2)}/h)`]))}</select>
+    <div class="row2">
+     <div><label for="p_month">Pay month</label><input id="p_month" type="month" value="${TODAY.slice(0,7)}"></div>
+     <div><label for="p_hours">Hours worked</label><input id="p_hours" type="number" min="0" step="0.1" value="80"></div>
+    </div>
+    <label for="p_method">Payment method</label><select id="p_method"><option>Direct Deposit</option><option>Check</option><option>Cash</option></select>
+    <div class="note" id="p_calc"></div>
+    <button class="btn" id="doPay" type="button">Save pay record</button>
+    <div id="payOut"></div>
+   </div>
+   <div class="card"><h3>Latest pay records</h3><div class="tw"><table><thead><tr><th>Month</th><th>Staff</th><th>Gym system</th><th>Hours</th><th>Pay</th><th>Error</th></tr></thead><tbody>
+    ${rows.map(p=>`<tr><td>${esc(p.pay_period_month)}</td><td>${esc(p.staff_id)}</td><td>${esc(locSys(staffLoc[p.staff_id]))}</td><td>${num(p.hours_worked)}</td><td>$${num(p.gross_pay_usd).toFixed(2)}</td><td>${p.has_manual_entry_error==='Yes'?'<span class="tag High">Yes</span>':'<span class="tag Low">No</span>'}</td></tr>`).join('')}
+   </tbody></table></div></div>
+  </div>`;
+}
+function payCalc(){
+  const s = DB.Staff.find(x=>x.staff_id===$('#p_staff').value); const h = num($('#p_hours').value);
+  $('#p_calc').textContent = s ? `Gross pay = ${h} hours x $${num(s.hourly_rate_usd).toFixed(2)} = $${(h*num(s.hourly_rate_usd)).toFixed(2)}` : '';
+}
+
+function viewData(){
+  const tab = window.__tab || 'Members', q = (window.__q||'').toLowerCase();
+  const all = DB[tab]; const cols = all.length ? Object.keys(all[0]) : [];
+  let rows = all; if(q) rows = rows.filter(r => Object.values(r).join(' ').toLowerCase().includes(q));
+  const shown = (q ? rows : rows.slice(-60).reverse()).slice(0,60);
+  return `<h2>Dataset</h2>
+  <p class="lead">${LIVE?'This is read from your Google Sheet.':'Demo mode: stored in this browser.'} The newest rows are shown first, so you can see each sign-up, booking, check-in or pay record land here.</p>
+  <div class="card"><div class="row2" style="max-width:560px"><div><label for="t_tab">Table</label><select id="t_tab">${opts(Object.keys(DB).map(k=>[k,`${k} (${DB[k].length})`]),tab)}</select></div><div><label for="t_q">Search</label><input id="t_q" value="${esc(window.__q||'')}" placeholder="type to filter"></div></div>
+  <div class="tw" style="margin-top:12px"><table><thead><tr>${cols.map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>
+  ${shown.map(r=>`<tr>${cols.map(c=>`<td>${esc(r[c])}</td>`).join('')}</tr>`).join('') || '<tr><td class="empty">No rows.</td></tr>'}
+  </tbody></table></div>
+  <div class="note">Showing ${shown.length} of ${rows.length} rows.</div></div>`;
+}
+
+function render(){
+  const fn = {dashboard:viewDashboard, signup:viewSignup, book:viewBook, desk:viewDesk, payroll:viewPayroll, data:viewData}[view];
+  $('#view').innerHTML = fn();
+  if(view==='book') fillBookClasses();
+  if(view==='payroll') payCalc();
+  if(view==='desk' && window.__deskMember){ renderDeskMember(); }
+}
+
+/* ============ actions ============ */
+async function guard(fn, outSel){
+  try{ await fn(); }
+  catch(e){ const o = $(outSel); if(o) o.innerHTML = `<div class="err">${esc(e.message||e)}</div>`; }
+}
+async function doSignup(){
+  const name = $('#f_name').value.trim();
+  if(!name) throw new Error('Please enter the member\'s name.');
+  const plan = $('#f_plan').value, age = num($('#f_age').value);
+  const row = {member_id:'', full_name:name, location_id:$('#f_loc').value, age, age_group:ageGroup(age), gender:$('#f_gender').value,
+    tech_comfort_level:$('#f_tech').value, membership_type:plan, monthly_fee_usd:PLANS[plan], join_date:TODAY, member_tenure_months:0,
+    is_active_member:'Yes', cancellation_date:'Not Applicable (Active Member)', cancellation_reason:'Not Applicable (Active Member)',
+    signup_channel:$('#f_ch').value, monthly_checkins:0, created_at:new Date().toISOString().slice(0,19)};
+  const saved = await append('Members', row);
+  $('#signupOut').innerHTML = `<div class="ok"><b>Welcome, ${esc(name)}!</b><br>Your Member ID is <b>${esc(saved.member_id)}</b>. Use it to book classes and check in.<br><button class="btn sm" id="toDash" type="button" style="margin-top:10px">See it on the dashboard</button></div>`;
+  toast('Member added to the data source');
+}
+async function doBook(){
+  const m = member($('#b_mid').value);
+  if(!m) throw new Error('Member ID not found. Sign up first, or check the ID.');
+  if(!isActive(m)) throw new Error('This membership is cancelled.');
+  const c = DB.Classes.find(x=>x.class_id===$('#b_cls').value), date = $('#b_date').value;
+  if(!c || !date) throw new Error('Pick a class and a date.');
+  if(DB.Bookings.some(b=>b.member_id===m.member_id && b.class_id===c.class_id && b.class_date===date && b.status!=='Cancelled')) throw new Error('Already booked for that class and date.');
+  const taken = DB.Bookings.filter(b=>b.class_id===c.class_id && b.class_date===date && (b.status==='Booked'||b.status==='Checked-in')).length;
+  const status = taken >= num(c.class_capacity) ? 'Waitlisted' : 'Booked';
+  await append('Bookings', {booking_id:'', member_id:m.member_id, class_id:c.class_id, class_date:date, home_location_id:m.location_id, class_location_id:c.location_id, status, created_at:new Date().toISOString().slice(0,19)});
+  const cross = m.location_id !== c.location_id;
+  $('#bookOut').innerHTML = `<div class="ok"><b>${status}</b>: ${esc(c.class_name)} on ${esc(date)} at ${esc(locName(c.location_id))}.${cross?' This is a cross-location booking.':''}</div>`;
+  toast(status + ' - saved');
+}
+async function checkInMember(m, classId, bookingId){
+  const c = DB.Classes.find(x=>x.class_id===classId);
+  await append('CheckIns', {checkin_id:'', member_id:m.member_id, class_id:classId, location_id:c.location_id, checkin_date:TODAY, checkin_method:'App Scan', attended:'Yes', waitlisted:'No', created_at:new Date().toISOString().slice(0,19)});
+  await inc('Members','member_id',m.member_id,'monthly_checkins',1);
+  if(bookingId) await update('Bookings','booking_id',bookingId,{status:'Checked-in'});
+  toast('Checked in');
+  window.__deskMember = m.member_id; render();
+}
+async function doPay(){
+  const s = DB.Staff.find(x=>x.staff_id===$('#p_staff').value), h = num($('#p_hours').value), mo = $('#p_month').value;
+  if(!mo || h<=0) throw new Error('Enter a month and hours worked.');
+  const gross = Math.round(h*num(s.hourly_rate_usd)*100)/100;
+  await append('Payroll', {payroll_id:'', staff_id:s.staff_id, pay_period_month:mo, hours_worked:h, hourly_rate_usd:num(s.hourly_rate_usd), gross_pay_usd:gross, payment_method:$('#p_method').value, has_manual_entry_error:'No'});
+  $('#payOut').innerHTML = `<div class="ok">Saved: ${esc(s.staff_id)} - $${gross.toFixed(2)} for ${esc(mo)}.</div>`;
+  toast('Pay record saved');
+}
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('button'); if(!b) return;
+  if(b.dataset.v) return go(b.dataset.v);
+  if(b.dataset.desk){ window.__deskMember = b.dataset.desk; return go('desk'); }
+  if(b.dataset.ci){ const bk = DB.Bookings.find(x=>x.booking_id===b.dataset.ci); const m = member(bk.member_id); return guard(()=>checkInMember(m, bk.class_id, bk.booking_id), '#deskOut'); }
+  switch(b.id){
+    case 'doSignup': return guard(doSignup,'#signupOut');
+    case 'toDash': return go('dashboard');
+    case 'doBook': return guard(doBook,'#bookOut');
+    case 'doFind': window.__deskMember = $('#d_mid').value; return renderDeskMember();
+    case 'doWalk': { const m = member($('#d_mid').value); return guard(()=>checkInMember(m, $('#d_walk').value, null), '#deskOut'); }
+    case 'doCancel': { const m = member($('#d_mid').value); return guard(async()=>{ await update('Members','member_id',m.member_id,{is_active_member:'No', cancellation_date:TODAY, cancellation_reason:$('#d_reason').value}); toast('Membership cancelled'); window.__deskMember=m.member_id; render(); }, '#deskOut'); }
+    case 'doPay': return guard(doPay,'#payOut');
+    case 'btnSettings': $('#apiUrl').value = API; return $('#dlg').showModal();
+    case 'closeDlg': return $('#dlg').close();
+    case 'saveApi': { const v = $('#apiUrl').value.trim(); v ? LS.set('rf_api', v) : LS.del('rf_api'); return location.reload(); }
+    case 'testApi': { $('#testOut').textContent = 'Testing...'; return fetch($('#apiUrl').value.trim() + '?key=' + encodeURIComponent(KEY)).then(r=>r.json()).then(j=>{ $('#testOut').textContent = 'Connected. Members found: ' + (j.Members||[]).length; }).catch(()=>{ $('#testOut').textContent = 'Could not connect. Check the URL and that access is set to Anyone.'; }); }
+    case 'btnReset': if(confirm('Reset the demo data to the original dataset?')){ LS.del('rf_db'); location.reload(); } return;
+  }
+});
+document.addEventListener('change', e => {
+  const id = e.target.id;
+  if(id==='riskLoc'){ window.__riskLoc = e.target.value; render(); }
+  if(id==='b_loc') fillBookClasses();
+  if(id==='b_cls') fillBookDates();
+  if(id==='p_staff') payCalc();
+  if(id==='t_tab'){ window.__tab = e.target.value; render(); }
+});
+document.addEventListener('input', e => {
+  if(e.target.id==='p_hours') payCalc();
+  if(e.target.id==='t_q'){ window.__q = e.target.value; const p = e.target.selectionStart; render(); const q = $('#t_q'); q.focus(); q.setSelectionRange(p,p); }
+});
+document.addEventListener('keydown', e => { if(e.key==='Enter' && e.target.id==='d_mid'){ window.__deskMember = e.target.value; renderDeskMember(); } });
+window.addEventListener('storage', async e => { if(e.key==='rf_db' && !LIVE){ await loadDB(); if(view==='dashboard'||view==='data') render(); } });
+
+/* ============ start ============ */
+(async function(){
+  $('#mode').textContent = LIVE ? 'Live: Google Sheet' : 'Demo mode: this browser';
+  $('#mode').classList.add(LIVE ? 'live' : 'demo');
+  if(!LIVE) $('#btnReset').hidden = false;
+  renderNav();
+  if(LIVE && !KEY){ KEY = prompt('Staff passcode (set as STAFF_KEY in Code.gs):') || ''; LS.set('rf_key', KEY); }
+  try{ await loadDB(); }
+  catch(e){ LS.del('rf_key'); $('#view').innerHTML = '<div class="err">Could not read the data. Either the staff passcode is wrong or the Web App URL is wrong. <button class="btn sm" onclick="location.reload()" type="button">Try again</button></div>'; return; }
+  render();
+  setInterval(async () => {
+    if(document.hidden || (view!=='dashboard' && view!=='data')) return;
+    if(document.activeElement && /INPUT|SELECT/.test(document.activeElement.tagName)) return;
+    try{ await loadDB(); render(); }catch(e){}
+  }, 8000);
+})();
+</script>
+</body>
+</html>

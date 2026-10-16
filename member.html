@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Riverside Fitness - Member App</title><style>
+:root{
+  --bg:#f3f6f7; --card:#ffffff; --ink:#14232b; --muted:#5d6f78; --line:#dbe3e7;
+  --brand:#0b6e6e; --brand-dark:#0b6e6e; --brand-soft:#e1f1f0;
+  --high:#c8432b; --high-soft:#fbe7e2; --med:#b7791f; --med-soft:#fbf0d9;
+  --low:#2f855a; --low-soft:#e0f3e8; --new:#2b6cb0; --new-soft:#e3eefa;
+  --radius:10px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+header{background:var(--brand-dark);color:#fff;padding:12px 20px;display:flex;flex-wrap:wrap;align-items:center;gap:14px}
+header h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.2px}
+header .sub{font-size:12px;opacity:.75}
+.spacer{flex:1}
+.pill{font-size:12px;padding:3px 10px;border-radius:99px;background:rgba(255,255,255,.16)}
+.pill.live{background:#2f855a}
+.pill.demo{background:#b7791f}
+header button{background:rgba(255,255,255,.14);color:#fff;border:0;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:12px}
+header button:hover{background:rgba(255,255,255,.26)}
+nav{background:#fff;border-bottom:1px solid var(--line);display:flex;gap:2px;padding:0 14px;overflow-x:auto}
+nav button{background:none;border:0;padding:13px 14px;font-size:14px;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+nav button.on{color:var(--brand-dark);border-bottom-color:var(--brand);font-weight:600}
+main{max-width:1180px;margin:0 auto;padding:20px 16px 60px}
+h2{margin:0 0 4px;font-size:20px}
+.lead{color:var(--muted);margin:0 0 18px}
+.grid{display:grid;gap:14px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:14px}
+.two{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+.card h3{margin:0 0 10px;font-size:14px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.kpi .v{font-size:28px;font-weight:700;line-height:1.1}
+.kpi .l{font-size:12px;color:var(--muted);margin-top:4px}
+.kpi.flash{animation:flash 1.4s}
+@keyframes flash{0%{background:#fff6cc}100%{background:#fff}}
+.bar{display:grid;grid-template-columns:minmax(120px,38%) 1fr 44px;gap:8px;align-items:center;margin:7px 0;font-size:13px}
+.bar .t{height:14px;background:#eaf0f2;border-radius:4px;overflow:hidden}
+.bar .t i{display:block;height:100%;background:var(--brand);border-radius:4px}
+.bar .t i.hot{background:var(--high)}
+.bar .n{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+.stack{display:flex;height:22px;border-radius:5px;overflow:hidden;margin:6px 0 10px}
+.stack i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted)}
+.legend b{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.tag{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:99px}
+.tag.High{background:var(--high-soft);color:var(--high)}
+.tag.Medium{background:var(--med-soft);color:var(--med)}
+.tag.Low{background:var(--low-soft);color:var(--low)}
+.tag.New{background:var(--new-soft);color:var(--new)}
+  .tag.No\ data{background:#eef1f3;color:var(--muted)}
+.tag.x{background:#eef1f3;color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-weight:600;color:var(--muted);padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:7px 8px;border-bottom:1px solid #edf1f3}
+.tw{overflow-x:auto}
+label{display:block;font-size:12.5px;font-weight:600;margin:12px 0 4px;color:var(--muted)}
+input,select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font:inherit;background:#fff;color:var(--ink)}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:560px){.row2{grid-template-columns:1fr}}
+.btn{background:var(--brand);color:#fff;border:0;border-radius:7px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer;margin-top:16px}
+.btn:hover{background:var(--brand-dark)}
+.btn.ghost{background:#fff;color:var(--brand-dark);border:1px solid var(--brand)}
+.btn.sm{padding:5px 10px;margin:0;font-size:12.5px}
+.btn.warn{background:var(--high)}
+.form{max-width:560px}
+.note{font-size:12.5px;color:var(--muted);margin-top:8px}
+.ok{background:var(--low-soft);border:1px solid #b7e1c8;border-radius:8px;padding:12px 14px;margin-top:14px}
+.err{background:var(--high-soft);border:1px solid #f1bbb0;border-radius:8px;padding:10px 14px;margin-top:14px;color:#7a2616}
+.feed{list-style:none;margin:0;padding:0;font-size:13px}
+.feed li{padding:7px 0;border-bottom:1px solid #edf1f3;display:flex;gap:8px}
+.feed time{color:var(--muted);font-size:11.5px;white-space:nowrap;min-width:56px}
+.empty{color:var(--muted);font-size:13px;padding:6px 0}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#14232b;color:#fff;padding:10px 16px;border-radius:8px;font-size:13.5px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:9}
+#toast.show{opacity:1}
+dialog{border:0;border-radius:12px;padding:20px;max-width:520px;width:92%;box-shadow:0 12px 40px rgba(0,0,0,.3)}
+dialog::backdrop{background:rgba(10,25,30,.5)}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12.5px;color:var(--muted);margin-bottom:16px}
+.flow span{background:#fff;border:1px solid var(--line);border-radius:6px;padding:3px 8px}
+
+main{max-width:900px}a{color:var(--brand-dark)}</style></head><body>
+<header>
+  <div><h1>Riverside Fitness</h1><div class="sub">Member app - book classes at any of our 3 gyms</div></div>
+  <div class="spacer"></div>
+  <span id="who" class="pill" hidden></span>
+  <button id="btnLogout" type="button" hidden>Log out</button>
+</header>
+<nav id="nav"></nav>
+<main id="view"></main>
+<div id="toast" role="status"></div>
+<script src="config.js"></script>
+<script src="seed.js"></script>
+<script>
+const LS = {
+  get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+};
+const API = (LS.get('rf_api') || window.RF_API_URL || '').trim();
+const LIVE = !!API;
+const TODAY = new Date().toISOString().slice(0,10);
+const PLANS = {Basic:35, Standard:69, Premium:120};
+const ID_RULES = {Members:['member_id','MEM-',4], Bookings:['booking_id','BKG-',5], CheckIns:['checkin_id','CHK-',6]};
+let me = LS.get('rf_member') || '';
+let view = me ? 'account' : 'login';
+let PUB = {Locations:[], Classes:[], Counts:{}}, ACCT = null, DB = null;
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num = v => Number(v) || 0;
+const locName = id => { const l = PUB.Locations.find(x => x.location_id === id); return l ? l.location_name.replace('Riverside Fitness - ','') : id; };
+function toast(t){ const e = $('#toast'); e.textContent = t; e.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(()=>e.classList.remove('show'), 2800); }
+function opts(arr, sel){ return arr.map(([v,t]) => `<option value="${esc(v)}"${v===sel?' selected':''}>${esc(t)}</option>`).join(''); }
+function ageGroup(a){ return a<30?'18-29':a<45?'30-44':a<60?'45-59':'60+'; }
+function nextDates(dow, n){
+  const names = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const out = []; const d = new Date(TODAY + 'T12:00:00');
+  for(let i=0; out.length<n && i<30; i++){ if(names[d.getDay()] === dow) out.push(d.toISOString().slice(0,10)); d.setDate(d.getDate()+1); }
+  return out;
+}
+function classLabel(c){ return `${c.class_name} - ${c.day_of_week.slice(0,3)} ${c.class_time_slot.split(' (')[0]} - ${locName(c.location_id)}`; }
+
+/* ---- data layer ---- */
+function saveDemo(){ LS.set('rf_db', JSON.stringify(DB)); }
+function nextId(tab){
+  const [col,pre,pad] = ID_RULES[tab];
+  return pre + String(Math.max(0, ...DB[tab].map(r => Number(String(r[col]).replace(/\D/g,''))||0)) + 1).padStart(pad,'0');
+}
+function countsFrom(bk){ const c = {}; bk.forEach(b => { if(b.status==='Booked'||b.status==='Checked-in'){ const k=b.class_id+'|'+b.class_date; c[k]=(c[k]||0)+1; } }); return c; }
+async function load(){
+  if(LIVE){
+    PUB = await (await fetch(API)).json();
+    ACCT = null;
+    if(me){
+      const j = await (await fetch(API + '?member=' + encodeURIComponent(me))).json();
+      const m = (j.Members||[])[0];
+      ACCT = m ? {m, bookings:j.Bookings||[], checkins:j.CheckIns||[]} : null;
+    }
+  } else {
+    const s = LS.get('rf_db'); DB = s ? JSON.parse(s) : JSON.parse(JSON.stringify(window.SEED));
+    PUB = {Locations:DB.Locations, Classes:DB.Classes, Counts:countsFrom(DB.Bookings)};
+    const m = me && DB.Members.find(x => String(x.member_id).toUpperCase()===me.toUpperCase());
+    ACCT = m ? {m, bookings:DB.Bookings.filter(b=>b.member_id===m.member_id), checkins:DB.Bookings && DB.CheckIns.filter(c=>c.member_id===m.member_id).slice(-10)} : null;
+  }
+}
+async function append(tab,row){
+  if(LIVE){
+    const r = await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'append',tab,row})});
+    const j = await r.json(); if(!j.ok) throw new Error(j.error||'Could not save'); return j.row;
+  }
+  row[ID_RULES[tab][0]] = nextId(tab); DB[tab].push(row); saveDemo(); return row;
+}
+async function cancelBooking(id){
+  if(LIVE){
+    const r = await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'update',tab:'Bookings',key:'booking_id',value:id,changes:{status:'Cancelled'},member:me})});
+    const j = await r.json(); if(!j.ok) throw new Error(j.error||'Could not cancel'); return;
+  }
+  const b = DB.Bookings.find(x=>x.booking_id===id); if(b) b.status='Cancelled'; saveDemo();
+}
+
+/* ---- views ---- */
+const VIEWS = () => me ? {account:'My Account', book:'Book a Class'} : {login:'Log in', join:'Join', book:'Book a Class'};
+function renderNav(){
+  const v = VIEWS(); $('#nav').innerHTML = Object.entries(v).map(([k,t])=>`<button type="button" data-v="${k}" class="${k===view?'on':''}">${t}</button>`).join('');
+  $('#who').hidden = $('#btnLogout').hidden = !me;
+  if(ACCT) $('#who').textContent = ACCT.m.full_name || ACCT.m.member_id;
+}
+function go(v){ view = v; renderNav(); render(); window.scrollTo(0,0); }
+
+function viewLogin(){ return `<h2>Welcome back</h2><p class="lead">Enter your Member ID to see your classes and visits.</p>
+  <div class="card form"><label for="l_id">Member ID</label><input id="l_id" placeholder="e.g. MEM-0022" autocomplete="off">
+  <button class="btn" id="doLogin" type="button">Log in</button><div id="loginOut"></div>
+  <p class="note">New here? <a href="#" data-v="join">Join Riverside Fitness</a></p></div>`; }
+
+function viewJoin(){ return `<h2>Join Riverside Fitness</h2><p class="lead">One membership, three gyms. Sign up in a minute.</p>
+  <div class="card form">
+    <label for="f_name">Full name</label><input id="f_name" autocomplete="name">
+    <div class="row2"><div><label for="f_age">Age</label><input id="f_age" type="number" min="14" max="99" value="28"></div>
+    <div><label for="f_gender">Gender</label><select id="f_gender"><option>Female</option><option>Male</option><option>Non-binary</option></select></div></div>
+    <label for="f_loc">Your home gym</label><select id="f_loc">${opts(PUB.Locations.map(l=>[l.location_id,locName(l.location_id)]))}</select>
+    <label for="f_plan">Plan</label><select id="f_plan">${Object.entries(PLANS).map(([k,v])=>`<option value="${k}">${k} - $${v}/month</option>`).join('')}</select>
+    <label for="f_ch">How did you hear about us?</label><select id="f_ch"><option>Online</option><option>Referral</option><option>Walk-in</option><option>Corporate Partner</option></select>
+    <button class="btn" id="doJoin" type="button">Join now</button><div id="joinOut"></div></div>`; }
+
+function viewAccount(){
+  if(!ACCT) return `<div class="err">We could not find that Member ID. <a href="#" data-v="login">Log in again</a></div>`;
+  const m = ACCT.m, n = num(m.monthly_checkins), goal = 4;
+  const up = ACCT.bookings.filter(b => (b.status==='Booked'||b.status==='Waitlisted') && b.class_date >= TODAY).sort((a,b)=>a.class_date.localeCompare(b.class_date));
+  const msg = m.is_active_member!=='Yes' ? 'Your membership is cancelled.' : n >= goal ? 'Great work - you are on track this month.' : `You are ${goal-n} visit${goal-n===1?'':'s'} away from your monthly goal. Book your next class below.`;
+  return `<h2>Hi ${esc((m.full_name||m.member_id).split(' ')[0])}</h2><p class="lead">${esc(m.member_id)} - ${esc(m.membership_type)} plan - home gym ${esc(locName(m.location_id))}</p>
+  <div class="grid two">
+   <div class="card"><h3>Visits this month</h3><div class="kpi"><div class="v">${n}</div><div class="l">goal: ${goal} visits a month</div></div>
+     <div class="bar" style="grid-template-columns:1fr"><span class="t"><i style="width:${Math.min(100,100*n/goal)}%"></i></span></div><p class="note">${esc(msg)}</p>
+     <button class="btn" data-v="book" type="button">Book a class</button></div>
+   <div class="card"><h3>Upcoming classes</h3>
+     ${up.map(b=>{const c=PUB.Classes.find(x=>x.class_id===b.class_id)||{};return `<div class="bar" style="grid-template-columns:1fr auto;margin:10px 0"><span><b>${esc(c.class_name||b.class_id)}</b> <span class="tag ${b.status==='Waitlisted'?'Medium':'Low'}">${esc(b.status)}</span><br><small>${esc(new Date(b.class_date+'T12:00:00').toDateString())} - ${esc(locName(b.class_location_id))}</small></span><button class="btn sm ghost" data-cancel="${esc(b.booking_id)}" type="button">Cancel</button></div>`}).join('') || '<div class="empty">No upcoming classes.</div>'}
+   </div>
+   <div class="card"><h3>Recent visits</h3>${ACCT.checkins.slice().reverse().map(c=>{const k=PUB.Classes.find(x=>x.class_id===c.class_id)||{};return `<div class="note">${esc(String(c.checkin_date).slice(0,10))} - ${esc(k.class_name||c.class_id)} - ${esc(locName(c.location_id))}</div>`}).join('') || '<div class="empty">No visits yet.</div>'}</div>
+  </div>`;
+}
+
+function viewBook(){
+  return `<h2>Book a Class</h2><p class="lead">Pick any class at any of our gyms with your one membership.</p>
+  <div class="card form">
+   ${me ? '' : `<label for="b_mid">Member ID</label><input id="b_mid" placeholder="e.g. MEM-0022" autocomplete="off">`}
+   <label for="b_loc">Gym</label><select id="b_loc"><option value="">All gyms</option>${opts(PUB.Locations.map(l=>[l.location_id,locName(l.location_id)]))}</select>
+   <label for="b_cls">Class</label><select id="b_cls"></select>
+   <label for="b_date">Date</label><select id="b_date"></select>
+   <button class="btn" id="doBook" type="button">Book class</button><div id="bookOut"></div></div>`;
+}
+function fillBook(){
+  const loc = $('#b_loc').value;
+  const list = PUB.Classes.filter(c=>!loc||c.location_id===loc).sort((a,b)=>a.class_name.localeCompare(b.class_name));
+  $('#b_cls').innerHTML = opts(list.map(c=>[c.class_id,classLabel(c)])); fillDates();
+}
+function fillDates(){
+  const c = PUB.Classes.find(x=>x.class_id===$('#b_cls').value);
+  $('#b_date').innerHTML = c ? opts(nextDates(c.day_of_week,4).map(d=>[d,new Date(d+'T12:00:00').toDateString()])) : '';
+}
+function render(){
+  $('#view').innerHTML = ({login:viewLogin, join:viewJoin, account:viewAccount, book:viewBook})[view]();
+  if(view==='book') fillBook();
+}
+
+/* ---- actions ---- */
+async function guard(fn,out){ try{ await fn(); }catch(e){ const o=$(out); if(o) o.innerHTML=`<div class="err">${esc(e.message||e)}</div>`; } }
+async function startSession(id){ me = id; LS.set('rf_member', id); await load(); view='account'; renderNav(); render(); }
+async function doLogin(){
+  const id = $('#l_id').value.trim().toUpperCase(); if(!id) throw new Error('Enter your Member ID.');
+  me = id; await load();
+  if(!ACCT){ me=''; throw new Error('We could not find that Member ID.'); }
+  LS.set('rf_member', me); view='account'; renderNav(); render();
+}
+async function doJoin(){
+  const name = $('#f_name').value.trim(); if(!name) throw new Error('Please enter your name.');
+  const plan=$('#f_plan').value, age=num($('#f_age').value);
+  const saved = await append('Members',{member_id:'',full_name:name,location_id:$('#f_loc').value,age,age_group:ageGroup(age),gender:$('#f_gender').value,tech_comfort_level:'Medium',membership_type:plan,monthly_fee_usd:PLANS[plan],join_date:TODAY,member_tenure_months:0,is_active_member:'Yes',cancellation_date:'Not Applicable (Active Member)',cancellation_reason:'Not Applicable (Active Member)',signup_channel:$('#f_ch').value,monthly_checkins:0,created_at:new Date().toISOString().slice(0,19)});
+  $('#joinOut').innerHTML = `<div class="ok"><b>Welcome, ${esc(name)}!</b><br>Your Member ID is <b>${esc(saved.member_id)}</b>. Keep it to book classes.<br><button class="btn sm" id="goAcct" data-id="${esc(saved.member_id)}" type="button" style="margin-top:10px">Open my account</button></div>`;
+  toast('You are a member now');
+}
+async function doBook(){
+  let id = me; if(!id){ id = $('#b_mid').value.trim().toUpperCase(); if(!id) throw new Error('Enter your Member ID, or join first.'); }
+  let m = ACCT && ACCT.m;
+  if(!m){ const bak = me; me = id; await load(); m = ACCT && ACCT.m; me = bak; if(!m) throw new Error('Member ID not found. Join first.'); }
+  if(m.is_active_member!=='Yes') throw new Error('This membership is cancelled.');
+  const c = PUB.Classes.find(x=>x.class_id===$('#b_cls').value), date=$('#b_date').value;
+  if(!c||!date) throw new Error('Pick a class and a date.');
+  const taken = num(PUB.Counts[c.class_id+'|'+date]);
+  const status = taken >= num(c.class_capacity) ? 'Waitlisted' : 'Booked';
+  await append('Bookings',{booking_id:'',member_id:m.member_id,class_id:c.class_id,class_date:date,home_location_id:m.location_id,class_location_id:c.location_id,status,created_at:new Date().toISOString().slice(0,19)});
+  await load();
+  $('#bookOut').innerHTML = `<div class="ok"><b>${status}</b>: ${esc(c.class_name)} on ${esc(new Date(date+'T12:00:00').toDateString())} at ${esc(locName(c.location_id))}.${m.location_id!==c.location_id?' Booked at a different gym from your home gym - no problem.':''}</div>`;
+  toast(status);
+}
+document.addEventListener('click', async e => {
+  const a = e.target.closest('a[data-v]'); if(a){ e.preventDefault(); return go(a.dataset.v); }
+  const b = e.target.closest('button'); if(!b) return;
+  if(b.dataset.v) return go(b.dataset.v);
+  if(b.dataset.cancel) return guard(async()=>{ await cancelBooking(b.dataset.cancel); await load(); toast('Booking cancelled'); render(); }, '#view');
+  switch(b.id){
+    case 'doLogin': return guard(doLogin,'#loginOut');
+    case 'doJoin': return guard(doJoin,'#joinOut');
+    case 'goAcct': return startSession(b.dataset.id);
+    case 'doBook': return guard(doBook,'#bookOut');
+    case 'btnLogout': me=''; ACCT=null; LS.del('rf_member'); view='login'; renderNav(); return render();
+  }
+});
+document.addEventListener('change', e => { if(e.target.id==='b_loc') fillBook(); if(e.target.id==='b_cls') fillDates(); });
+document.addEventListener('keydown', e => { if(e.key==='Enter' && e.target.id==='l_id') guard(doLogin,'#loginOut'); });
+(async function(){
+  try{ await load(); }catch(e){ $('#view').innerHTML='<div class="err">We could not load the app. Please try again later.</div>'; return; }
+  if(me && !ACCT){ me=''; LS.del('rf_member'); view='login'; }
+  renderNav(); render();
+})();
+</script>
+
+</body></html>
