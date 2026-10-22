@@ -82,14 +82,17 @@ dialog{border:0;border-radius:12px;padding:20px;max-width:520px;width:92%;box-sh
 dialog::backdrop{background:rgba(10,25,30,.5)}
 .flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12.5px;color:var(--muted);margin-bottom:16px}
 .flow span{background:#fff;border:1px solid var(--line);border-radius:6px;padding:3px 8px}
+td:first-child{white-space:nowrap}.btn.sm{white-space:nowrap}
 </style>
 </head>
 <body>
 <header>
-  <div><h1>Riverside Fitness - Staff Portal</h1><div class="sub">Management dashboard, front desk and payroll (office use)</div></div>
+  <div><h1>Riverside Fitness - Staff Portal</h1><div class="sub" id="roleSub">Office use</div></div>
   <div class="spacer"></div>
   <span id="mode" class="pill">...</span>
   <span id="synced" class="pill">not synced</span>
+  <a href="guide.html" target="_blank" style="color:#fff;font-size:12px">Guide</a>
+  <a href="index.html" style="color:#fff;font-size:12px">Switch role</a>
   <button id="btnSettings" type="button">Connect Google Sheet</button>
   <button id="btnReset" type="button" hidden>Reset demo data</button>
 </header>
@@ -118,7 +121,18 @@ const LS = {
   del(k){ try{ localStorage.removeItem(k); }catch(e){} }
 };
 const API = (LS.get('rf_api') || window.RF_API_URL || '').trim();
-let KEY = LS.get('rf_key') || '';
+let KEY = window.RF_STAFF_KEY || 'riverside2026';
+const QS = new URLSearchParams(location.search);
+if(QS.get('role')){ LS.set('rf_role', QS.get('role')); LS.set('rf_loc', QS.get('loc')||''); }
+const ROLE = LS.get('rf_role') || '';
+const ROLEDEF = {
+  frontdesk:{name:'Front Desk', tabs:['desk','signup','book'], needLoc:true},
+  manager:{name:'Gym Manager', tabs:['dashboard','compare','outreach','classes','desk'], needLoc:true},
+  head:{name:'Head Office', tabs:['dashboard','compare','outreach','classes','payroll','data'], needLoc:false}
+};
+if(!ROLEDEF[ROLE]){ location.replace('index.html'); }
+const MYLOC = ROLEDEF[ROLE] && ROLEDEF[ROLE].needLoc ? (LS.get('rf_loc') || 'LOC-A') : '';
+let SCOPED = ROLE==='manager' ? MYLOC : '';
 const LIVE = !!API;
 let DB = null;
 let view = 'dashboard';
@@ -126,7 +140,7 @@ const TODAY = new Date().toISOString().slice(0,10);
 
 const PLANS = {Basic:35, Standard:69, Premium:120};
 const REASONS = ['Price','Moved Away','Other','Lack of Class Variety','Health/Personal Reasons',"Couldn't Book Classes Across Locations",'Lost or Incorrect Manual Record','Scheduling/Booking Frustration'];
-const ID_RULES = {Members:['member_id','MEM-',4], Bookings:['booking_id','BKG-',5], CheckIns:['checkin_id','CHK-',6], Payroll:['payroll_id','PAY-',5]};
+const ID_RULES = {Members:['member_id','MEM-',4], Bookings:['booking_id','BKG-',5], CheckIns:['checkin_id','CHK-',6], Payroll:['payroll_id','PAY-',5], Outreach:['outreach_id','OUT-',5], Payments:['payment_id','PMT-',5]};
 
 /* ============ data layer (Google Sheet or browser demo) ============ */
 async function loadDB(){
@@ -134,9 +148,11 @@ async function loadDB(){
     const r = await fetch(API + '?key=' + encodeURIComponent(KEY));
     DB = await r.json();
     if(!DB.Members) throw new Error('bad key');
+    DB.Outreach = DB.Outreach || []; DB.Payments = DB.Payments || [];
   } else {
     let s = LS.get('rf_db');
     DB = s ? JSON.parse(s) : JSON.parse(JSON.stringify(window.SEED));
+    DB.Outreach = DB.Outreach || []; DB.Payments = DB.Payments || [];
   }
   document.getElementById('synced').textContent = 'synced ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
 }
@@ -147,7 +163,7 @@ function nextId(tab){
   return pre + String(mx+1).padStart(pad,'0');
 }
 async function post(req){
-  const r = await fetch(API, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({...req, key:KEY})});
+  const r = await fetch(API, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({...req, auth:KEY})});
   const j = await r.json();
   if(!j.ok) throw new Error(j.error || 'Write failed');
   return j;
@@ -198,11 +214,14 @@ function classLabel(c){ return `${c.class_name} - ${c.day_of_week.slice(0,3)} ${
 function opts(arr, sel){ return arr.map(([v,t]) => `<option value="${esc(v)}"${v===sel?' selected':''}>${esc(t)}</option>`).join(''); }
 
 /* ============ metrics ============ */
+const STAFFLOC = () => Object.fromEntries(DB.Staff.map(s => [s.staff_id, s.location_id]));
+function S(){ const sl = STAFFLOC(); return {M:DB.Members.filter(m=>!SCOPED||m.location_id===SCOPED), C:DB.CheckIns.filter(c=>!SCOPED||c.location_id===SCOPED), P:DB.Payroll.filter(p=>!SCOPED||sl[p.staff_id]===SCOPED)}; }
 function metrics(){
-  const M = DB.Members, act = M.filter(isActive), gone = M.filter(m => !isActive(m));
+  const SS = S();
+  const M = SS.M, act = M.filter(isActive), gone = M.filter(m => !isActive(m));
   const caps = Object.fromEntries(DB.Classes.map(c => [c.class_id, num(c.class_capacity)]));
   const sess = {}; let attended = 0;
-  DB.CheckIns.forEach(c => {
+  SS.C.forEach(c => {
     const k = c.class_id + '|' + String(c.checkin_date).slice(0,10);
     sess[k] = 1;
     if(c.attended === 'Yes') attended++;
@@ -214,31 +233,125 @@ function metrics(){
   gone.forEach(m => { reasons[m.cancellation_reason] = (reasons[m.cancellation_reason]||0)+1; });
   const staffLoc = Object.fromEntries(DB.Staff.map(s => [s.staff_id, s.location_id]));
   const pay = {};
-  DB.Payroll.forEach(p => {
+  SS.P.forEach(p => {
     const sys = locSys(staffLoc[p.staff_id]) || '?';
     pay[sys] = pay[sys] || {n:0, bad:0};
     pay[sys].n++; if(p.has_manual_entry_error === 'Yes') pay[sys].bad++;
   });
-  const payAll = DB.Payroll.reduce((a,p)=>a+(p.has_manual_entry_error==='Yes'?1:0),0);
-  const byLoc = DB.Locations.map(l => ({id:l.location_id, name:locName(l.location_id), sys:l.system_type, n:act.filter(m=>m.location_id===l.location_id).length}));
-  return {total:M.length, active:act.length, gone:gone.length, tiers, reasons, pay, payAll, payN:DB.Payroll.length, byLoc, attended, capSum, sessions:Object.keys(sess).length,
-          todayCheckins: DB.CheckIns.filter(c=>String(c.checkin_date).slice(0,10)===TODAY && c.attended==='Yes').length,
+  const payAll = SS.P.reduce((a,p)=>a+(p.has_manual_entry_error==='Yes'?1:0),0);
+  const byLoc = DB.Locations.filter(l=>!SCOPED||l.location_id===SCOPED).map(l => ({id:l.location_id, name:locName(l.location_id), sys:l.system_type, n:act.filter(m=>m.location_id===l.location_id).length}));
+  return {total:M.length, active:act.length, gone:gone.length, tiers, reasons, pay, payAll, payN:SS.P.length, modN:SS.P.filter(p=>p.entry_method==='Payroll Module').length, byLoc, attended, capSum, sessions:Object.keys(sess).length,
+          todayCheckins: SS.C.filter(c=>String(c.checkin_date).slice(0,10)===TODAY && c.attended==='Yes').length,
           todaySignups: M.filter(m=>String(m.join_date).slice(0,10)===TODAY).length};
 }
 
 /* ============ views ============ */
-const VIEWS = {
-  dashboard:'Dashboard', signup:'Sign Up', book:'Book a Class', desk:'Front Desk', payroll:'Payroll', data:'Dataset'
-};
+const ALLV = {dashboard:'Dashboard', compare:'Compare with Dashboard 1', outreach:'Retention', classes:'Class Fill', signup:'Sign Up', book:'Book a Class', desk:'Front Desk', payroll:'Payroll', data:'Dataset'};
+const VIEWS = Object.fromEntries((ROLEDEF[ROLE]||{tabs:[]}).tabs.map(k=>[k,ALLV[k]]));
+if(!VIEWS[view]) view = (ROLEDEF[ROLE]||{tabs:['dashboard']}).tabs[0];
 function renderNav(){
   $('#nav').innerHTML = Object.entries(VIEWS).map(([k,t]) => `<button type="button" data-v="${k}" class="${k===view?'on':''}">${t}</button>`).join('');
 }
-function go(v){ view = v; renderNav(); render(); window.scrollTo(0,0); if(LIVE && (v==='dashboard'||v==='data')) loadDB().then(()=>{ if(view===v) render(); }).catch(()=>{}); }
+function go(v){ view = v; renderNav(); render(); window.scrollTo(0,0); if(LIVE && ['dashboard','compare','data','outreach','classes'].includes(v)) loadDB().then(()=>{ if(view===v) render(); }).catch(()=>{}); }
 
+function snap(db){
+  const sl = Object.fromEntries(db.Staff.map(s=>[s.staff_id,s.location_id]));
+  const M = db.Members.filter(m=>!SCOPED||m.location_id===SCOPED), C = db.CheckIns.filter(c=>!SCOPED||c.location_id===SCOPED), P = db.Payroll.filter(p=>!SCOPED||sl[p.staff_id]===SCOPED);
+  const caps = Object.fromEntries(db.Classes.map(c=>[c.class_id,num(c.class_capacity)]));
+  const sess = {}; let att=0, no=0, wl=0;
+  C.forEach(c=>{ sess[c.class_id+'|'+String(c.checkin_date).slice(0,10)] = 1; if(c.attended==='Yes') att++; else no++; if(c.waitlisted==='Yes') wl++; });
+  const cap = Object.keys(sess).reduce((a,k)=>a+(caps[k.split('|')[0]]||0),0);
+  const act = M.filter(isActive).length;
+  return {n:M.length, cancel:M.length?(M.length-act)/M.length:0, active:M.length?act/M.length:0, fill:cap?att/cap:0,
+    pay:P.length?P.filter(p=>p.has_manual_entry_error==='Yes').length/P.length:0, noshow:C.length?no/C.length:0, wait:C.length?wl/C.length:0,
+    high:M.filter(m=>isActive(m)&&tier(m)==='High').length};
+}
+function compareCard(){
+  const b = snap(window.SEED), n = snap(DB);
+  const rows = [
+    ['Cancellation rate','cancel',-1], ['Active membership rate','active',1], ['Class capacity fill rate','fill',1],
+    ['Payroll error rate (all records)','pay',-1], ['No-show rate','noshow',-1], ['Waitlist rate','wait',0]
+  ];
+  const P = DB.Payroll.filter(p=>p.entry_method==='Payroll Module'), modBad = P.filter(p=>p.has_manual_entry_error==='Yes').length;
+  const O = DB.Outreach.filter(o=>!SCOPED||o.location_id===SCOPED), back = O.filter(o=>outStatus(o)==='Back on track').length;
+  const crossB = DB.Bookings.filter(x=>x.home_location_id!==x.class_location_id && x.status!=='Cancelled').length;
+  const newM = DB.Members.filter(x=>x.created_at).length, newB = DB.Bookings.length, newC = DB.CheckIns.filter(x=>x.created_at).length;
+  const f = v => (100*v).toFixed(1)+'%';
+  const delta = (k,dir) => { const d = 100*(n[k]-b[k]); const good = dir===0 ? null : (dir*d > 0.5); const bad = dir===0 ? null : (dir*d < -0.5); return `<span class="tag ${good?'Low':bad?'High':'x'}">${d>0?'+':''}${d.toFixed(1)} pts</span>`; };
+  return `<div class="card" style="margin-bottom:14px"><h3>Before and after: Dashboard 1 (analysis of the dataset) vs this live dashboard</h3>
+   <div class="tw"><table><thead><tr><th>Measure</th><th>Dashboard 1: baseline from the dataset</th><th>Dashboard 2: now, from the live system</th><th>Change</th></tr></thead><tbody>
+   ${rows.map(([t,k,d])=>`<tr><td>${t}</td><td>${f(b[k])}</td><td><b>${f(n[k])}</b></td><td>${delta(k,d)}</td></tr>`).join('')}
+   <tr><td>Members at high churn risk</td><td>${b.high}</td><td><b>${n.high}</b></td><td><span class="tag x">${n.high-b.high>0?'+':''}${n.high-b.high}</span></td></tr>
+   </tbody></table></div>
+   <div class="grid kpis" style="margin:14px 0 4px">
+    <div class="kpi"><div class="v" style="font-size:22px">${P.length ? f(modBad/P.length) : '-'}</div><div class="l"><b>Error rate in the Payroll Module</b><br>${P.length} record${P.length===1?'':'s'} entered (paper ${'18.3%'}, spreadsheet 15.0% before)</div></div>
+    <div class="kpi"><div class="v" style="font-size:22px">${crossB}</div><div class="l"><b>Cross-location bookings</b><br>not possible before</div></div>
+    <div class="kpi"><div class="v" style="font-size:22px">${O.length} / ${back}</div><div class="l"><b>Contacted / back on track</b><br>retention outreach</div></div>
+    <div class="kpi"><div class="v" style="font-size:22px">${newM} / ${newB} / ${newC}</div><div class="l"><b>New sign-ups / bookings / check-ins</b><br>entered through the new apps</div></div>
+   </div>
+   <p class="note">Same dataset, two views. Dashboard 1 explains what happened and why. Dashboard 2 starts from the same numbers, then keeps measuring as members, bookings, check-ins and pay records are entered. In a demo only a few records are added, so the changes are small. After launch the same panel would track the real change against the 27.3% cancellation, 44% fill and 18.3% paper payroll-error baselines.</p></div>`;
+}
+
+const money = v => '$' + num(v).toFixed(2);
+const paidOf = id => DB.Payments.find(p => p.member_id===id && p.status==='Paid');
+function payState(m){ return paidOf(m.member_id) ? 'Paid' : (m.created_at ? 'Pending' : 'Legacy'); }
+function payStats(){
+  const loc = Object.fromEntries(DB.Members.map(m=>[m.member_id,m.location_id]));
+  const inScope = id => !SCOPED || loc[id]===SCOPED;
+  const paid = DB.Payments.filter(p=>p.status==='Paid' && inScope(p.member_id));
+  const pending = S().M.filter(m=>m.created_at && !paidOf(m.member_id)).length;
+  const failed = DB.Payments.filter(p=>p.status==='Failed' && inScope(p.member_id)).length;
+  return {total:paid.reduce((a,p)=>a+num(p.amount_usd),0), n:paid.length, pending, failed};
+}
+const FIXABLE = ["Couldn't Book Classes Across Locations","Lost or Incorrect Manual Record","Scheduling/Booking Frustration"];
+function scenario(){
+  const sc = window.__sc = window.__sc || {pay:1.7, canc:30, fill:25};
+  const S0 = window.SEED, sl = Object.fromEntries(S0.Staff.map(s=>[s.staff_id,s.location_id]));
+  const caps = Object.fromEntries(S0.Classes.map(c=>[c.class_id,num(c.class_capacity)]));
+  const L = {};
+  S0.CheckIns.forEach(c=>{ const l=c.location_id; L[l]=L[l]||{sess:{},att:0}; L[l].sess[c.class_id+'|'+String(c.checkin_date).slice(0,10)]=1; if(c.attended==='Yes') L[l].att++; });
+  const Lf = {}; Object.keys(L).forEach(l=>{ const cap=Object.keys(L[l].sess).reduce((a,k)=>a+(caps[k.split('|')[0]]||0),0); Lf[l]={cap, att:L[l].att, fill:cap?L[l].att/cap:0}; });
+  const best = Math.max(...Object.values(Lf).map(x=>x.fill));
+  const locs = Object.keys(Lf).filter(l=>!SCOPED||l===SCOPED), capT = locs.reduce((a,l)=>a+Lf[l].cap,0);
+  const baseFill = capT ? locs.reduce((a,l)=>a+Lf[l].att,0)/capT : 0;
+  const projFill = capT ? locs.reduce((a,l)=>a+Lf[l].cap*(Lf[l].fill + sc.fill/100*(best-Lf[l].fill)),0)/capT : 0;
+  const M = S0.Members.filter(m=>!SCOPED||m.location_id===SCOPED), gone = M.filter(m=>m.is_active_member!=='Yes');
+  const addr = gone.filter(m=>FIXABLE.includes(m.cancellation_reason)).length, prevented = Math.round(addr*sc.canc/100);
+  const P = S0.Payroll.filter(p=>!SCOPED||sl[p.staff_id]===SCOPED);
+  const basePay = P.length ? P.filter(p=>p.has_manual_entry_error==='Yes').length/P.length : 0;
+  return {sc, baseFill, projFill, cancelBase:M.length?gone.length/M.length:0, cancelProj:M.length?(gone.length-prevented)/M.length:0, gone:gone.length, addr, prevented, basePay, projPay:Math.min(basePay, sc.pay/100), best};
+}
+function scenTable(){
+  const x = scenario(), n = snap(DB), f = v => (100*v).toFixed(1)+'%';
+  const d = (a,b,dir) => { const v = 100*(b-a); return `<span class="tag ${Math.abs(v)<0.05?'x':(dir*v>0?'Low':'High')}">${v>0?'+':''}${v.toFixed(1)} pts</span>`; };
+  return `<div class="tw"><table><thead><tr><th>Measure</th><th>Dashboard 1<br><small>baseline from the dataset</small></th><th>Dashboard 2 live now<br><small>measured</small></th><th>Dashboard 2 target scenario<br><small>projected, not measured</small></th><th>Target vs Dashboard 1</th></tr></thead><tbody>
+   <tr><td><b>Cancellation rate</b><br><small>${x.gone} cancelled; ${x.addr} for booking, record or scheduling problems; ${x.prevented} prevented in the scenario</small></td><td>${f(x.cancelBase)}</td><td>${f(n.cancel)}</td><td><b>${f(x.cancelProj)}</b></td><td>${d(x.cancelBase,x.cancelProj,-1)}</td></tr>
+   <tr><td><b>Class capacity fill rate</b><br><small>lower-filled gyms close part of the gap to the best gym (${f(x.best)})</small></td><td>${f(x.baseFill)}</td><td>${f(n.fill)}</td><td><b>${f(x.projFill)}</b></td><td>${d(x.baseFill,x.projFill,1)}</td></tr>
+   <tr><td><b>Payroll error rate</b><br><small>all pay records move to the Payroll Module</small></td><td>${f(x.basePay)}</td><td>${f(n.pay)}</td><td><b>${f(x.projPay)}</b></td><td>${d(x.basePay,x.projPay,-1)}</td></tr>
+  </tbody></table></div>`;
+}
+function scenarioCard(){
+  const sc = (scenario(), window.__sc);
+  const sl = (id,label,val,min,max,step,unit) => `<div><label for="${id}" style="margin-top:0">${label}: <b id="${id}_v">${val}${unit}</b></label><input id="${id}" type="range" min="${min}" max="${max}" step="${step}" value="${val}"></div>`;
+  return `<div class="card"><h3>Target scenario (assumptions you can change)</h3>
+   <div class="grid kpis" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr));margin-bottom:12px">
+    ${sl('sc_canc','Share of fixable cancellations the system prevents',sc.canc,0,100,5,'%')}
+    ${sl('sc_fill','Share of the fill-rate gap to the best gym that is closed',sc.fill,0,100,5,'%')}
+    ${sl('sc_pay','Payroll error rate after moving to the module',sc.pay,0,5,0.1,'%')}
+   </div>
+   <div id="scenTable">${scenTable()}</div>
+   <p class="note"><b>Projection, not a measured result.</b> The percentages above are assumptions the team chooses. The starting points come from the dataset: payroll errors are 1.7% at the gym already on the app; ${FIXABLE.length} cancellation reasons (booking across gyms, lost records, scheduling) are the ones the system targets. Real results can only be measured after launch with the same Dashboard 2 numbers.</p></div>`;
+}
+function viewCompare(){
+  return `<h2>Dashboard 1 vs Dashboard 2</h2>
+  <p class="lead">Dashboard 1 (Cross-Location Analysis) explains what happened in the dataset. Dashboard 2 keeps the same measures, updates them live, and adds a way to track the three goals.</p>
+  ${compareCard()}
+  ${scenarioCard()}`;
+}
 let lastKpi = '';
 function viewDashboard(){
   const m = metrics();
-  const risk = DB.Members.filter(x => isActive(x) && tier(x)==='High').sort((a,b) => num(a.monthly_checkins)-num(b.monthly_checkins));
+  const risk = S().M.filter(x => isActive(x) && tier(x)==='High').sort((a,b) => num(a.monthly_checkins)-num(b.monthly_checkins));
   const f = window.__riskLoc || '';
   const riskRows = risk.filter(x => !f || x.location_id===f).slice(0,12);
   const maxLoc = Math.max(1, ...m.byLoc.map(l=>l.n));
@@ -247,22 +360,27 @@ function viewDashboard(){
   const feed = [
     ...DB.Members.filter(x=>x.created_at).map(x=>({t:x.created_at, h:`New member <b>${esc(x.full_name||x.member_id)}</b> joined ${esc(locName(x.location_id))} (${esc(x.membership_type)})`})),
     ...DB.Bookings.filter(x=>x.created_at).map(x=>({t:x.created_at, h:`<b>${esc(x.member_id)}</b> ${x.status==='Waitlisted'?'joined the waitlist for':'booked'} a class at ${esc(locName(x.class_location_id))}${x.home_location_id!==x.class_location_id?' <span class="tag New">cross-location</span>':''}`})),
+    ...DB.Payments.filter(x=>x.created_at).map(x=>({t:x.created_at, h:`<b>${esc(x.member_id)}</b> payment ${x.status==='Paid'?'<span class="tag Low">successful</span>':x.status==='Failed'?'<span class="tag High">declined</span>':'<span class="tag Medium">pending</span>'} ${money(x.amount_usd)} (${esc(x.method)})`})),
     ...DB.CheckIns.filter(x=>x.created_at).map(x=>({t:x.created_at, h:`<b>${esc(x.member_id)}</b> checked in at ${esc(locName(x.location_id))}`}))
   ].sort((a,b)=>String(b.t).localeCompare(String(a.t))).slice(0,8);
+  const PS = payStats();
   const kp = [
     ['Active members', m.active, `${m.total} ever signed up`],
     ['Churn rate', pct(m.gone, m.total), `${m.gone} cancelled`],
     ['High churn risk', T.High, 'fewer than 4 check-ins / month'],
     ['Class fill rate', pct(m.attended, m.capSum), `${m.attended} check-ins, ${m.sessions} sessions`],
     ['Check-ins today', m.todayCheckins, `${m.todaySignups} new sign-ups today`],
-    ['Payroll error rate', pct(m.payAll, m.payN), `${m.payAll} of ${m.payN} pay records`]
+    ['Payroll error rate', pct(m.payAll, m.payN), `${m.payAll} of ${m.payN} records; ${m.modN} entered in the module`],
+    ['Membership payments', money(PS.total), `${PS.n} paid, ${PS.pending} pending, ${PS.failed} declined`]
   ];
   const sig = JSON.stringify(kp.map(k=>k[1]));
   const changed = lastKpi && sig !== lastKpi; lastKpi = sig;
   const col = {High:'#c8432b', Medium:'#d69e2e', Low:'#2f855a', New:'#2b6cb0', 'No data':'#b8c4ca'};
   return `
-  <h2>Management Dashboard</h2>
+  <h2>${ROLE==='manager'?esc(locName(SCOPED))+' Gym Dashboard':'Head Office Dashboard'}</h2>
   <p class="lead">Everything here is calculated from the shared data source. Sign up a member, book a class or edit the Google Sheet, and these numbers change.</p>
+  ${ROLE==='head'?`<div style="max-width:240px;margin-bottom:12px"><label for="hoLoc" style="margin-top:0">Gym</label><select id="hoLoc"><option value="">All gyms</option>${opts(DB.Locations.map(l=>[l.location_id,locName(l.location_id)]), SCOPED)}</select></div>`:''}
+  <div class="card" style="margin-bottom:14px;display:flex;flex-wrap:wrap;gap:12px;align-items:center"><div style="flex:1;min-width:240px"><b>Dashboard 1 vs Dashboard 2.</b> See the baseline from the dataset, the live numbers, and a target scenario side by side.</div><button class="btn sm" data-v="compare" type="button">Open the comparison</button></div>
   <div class="grid kpis">${kp.map(k=>`<div class="card kpi${changed?' flash':''}"><div class="v">${esc(k[1])}</div><div class="l"><b>${esc(k[0])}</b><br>${esc(k[2])}</div></div>`).join('')}</div>
   <div class="grid two">
     <div class="card"><h3>Active members by location</h3>
@@ -283,11 +401,14 @@ function viewDashboard(){
   </div>
   <div class="grid two" style="margin-top:14px">
     <div class="card"><h3>Churn-Risk Alert list</h3>
-      <select id="riskLoc" aria-label="Filter by location" style="max-width:240px;margin-bottom:8px"><option value="">All locations (${risk.length})</option>${opts(DB.Locations.map(l=>[l.location_id,locName(l.location_id)]), f)}</select>
+      <select id="riskLoc" aria-label="Filter by location" style="max-width:240px;margin-bottom:8px"${SCOPED?' hidden':''}><option value="">All locations (${risk.length})</option>${opts(DB.Locations.map(l=>[l.location_id,locName(l.location_id)]), f)}</select>
       <div class="tw"><table><thead><tr><th>Member</th><th>Gym</th><th>Plan</th><th>Check-ins</th><th></th></tr></thead><tbody>
-      ${riskRows.map(x=>`<tr><td>${esc(x.member_id)}${x.full_name?'<br><small>'+esc(x.full_name)+'</small>':''}</td><td>${esc(locName(x.location_id))}</td><td>${esc(x.membership_type)}</td><td><span class="tag High">${num(x.monthly_checkins)}</span></td><td><button class="btn sm ghost" data-desk="${esc(x.member_id)}" type="button">Open</button></td></tr>`).join('') || '<tr><td colspan="5" class="empty">No high-risk members.</td></tr>'}
+      ${riskRows.map(x=>`<tr><td>${esc(x.member_id)}${x.full_name?'<br><small>'+esc(x.full_name)+'</small>':''}</td><td>${esc(locName(x.location_id))}</td><td>${esc(x.membership_type)}</td><td><span class="tag High">${num(x.monthly_checkins)}</span></td><td>${VIEWS.desk?`<button class="btn sm ghost" data-desk="${esc(x.member_id)}" type="button">Open</button>`:`<button class="btn sm ghost" data-v="outreach" type="button">Reach out</button>`}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">No high-risk members.</td></tr>'}
       </tbody></table></div>
     </div>
+    <div class="card"><h3>Recent payments</h3><div class="tw"><table><thead><tr><th>Date</th><th>Member</th><th>Amount</th><th>Method</th><th>Status</th></tr></thead><tbody>
+      ${DB.Payments.filter(p=>!SCOPED||(member(p.member_id)||{}).location_id===SCOPED).slice(-6).reverse().map(p=>`<tr><td>${esc(String(p.payment_date).slice(0,10))}</td><td>${esc(p.member_id)}</td><td>${money(p.amount_usd)}</td><td>${esc(p.method)}</td><td><span class="tag ${p.status==='Paid'?'Low':p.status==='Failed'?'High':'Medium'}">${esc(p.status)}</span></td></tr>`).join('') || '<tr><td colspan="5" class="empty">No payments yet. Sign up a member in the Member App and pay.</td></tr>'}
+    </tbody></table></div></div>
     <div class="card"><h3>Live activity</h3>
       ${feed.length ? `<ul class="feed">${feed.map(f=>`<li><time>${esc(String(f.t).slice(11,19)||String(f.t).slice(0,10))}</time><span>${f.h}</span></li>`).join('')}</ul>` : '<div class="empty">No activity yet. Sign someone up, book a class or check a member in and it will appear here.</div>'}
     </div>
@@ -303,7 +424,7 @@ function viewSignup(){
       <div><label for="f_age">Age</label><input id="f_age" type="number" min="14" max="99" value="28"></div>
       <div><label for="f_gender">Gender</label><select id="f_gender"><option>Female</option><option>Male</option><option>Non-binary</option></select></div>
     </div>
-    <label for="f_loc">Home gym</label><select id="f_loc">${opts(DB.Locations.map(l=>[l.location_id,locName(l.location_id)]))}</select>
+    <label for="f_loc">Home gym</label><select id="f_loc">${opts(DB.Locations.map(l=>[l.location_id,locName(l.location_id)]), MYLOC)}</select>
     <div class="row2">
       <div><label for="f_plan">Membership plan</label><select id="f_plan">${Object.entries(PLANS).map(([k,v])=>`<option value="${k}">${k} - $${v}/month</option>`).join('')}</select></div>
       <div><label for="f_tech">Comfort with apps</label><select id="f_tech"><option>High</option><option selected>Medium</option><option>Low</option></select></div>
@@ -358,14 +479,15 @@ function renderDeskMember(){
    <div class="card"><h3>Member</h3>
      <div style="font-size:18px;font-weight:700">${esc(m.full_name||m.member_id)}</div>
      <div class="note">${esc(m.member_id)} - ${esc(locName(m.location_id))} - ${esc(m.membership_type)} ($${num(m.monthly_fee_usd).toFixed(2)})</div>
-     <p>Status: <span class="tag ${isActive(m)?'Low':'x'}">${isActive(m)?'Active':'Cancelled'}</span> &nbsp; Risk: <span class="tag ${t}">${t}</span><br>Check-ins this month: <b>${num(m.monthly_checkins)}</b></p>
+     <p>Status: <span class="tag ${isActive(m)?'Low':'x'}">${isActive(m)?'Active':'Cancelled'}</span> &nbsp; Risk: <span class="tag ${t}">${t}</span><br>Check-ins this month: <b>${num(m.monthly_checkins)}</b><br>Membership payment: <span class="tag ${payState(m)==='Paid'||payState(m)==='Legacy'?'Low':'Medium'}">${payState(m)==='Legacy'?'Paid (existing member)':payState(m)}</span></p>
+     ${isActive(m) && payState(m)==='Pending' ? `<button class="btn sm" data-collect="${esc(m.member_id)}" type="button" style="margin-bottom:10px">Collect ${money(m.monthly_fee_usd)} at the desk</button>` : ''}
      ${isActive(m) ? `<label for="d_reason">Cancel membership - reason</label><select id="d_reason">${opts(REASONS.map(r=>[r,r]))}</select><button class="btn sm warn" id="doCancel" type="button" style="margin-top:8px">Cancel membership</button>` : `<div class="note">Cancelled on ${esc(m.cancellation_date)}: ${esc(m.cancellation_reason)}</div>`}
    </div>
    <div class="card"><h3>Check in</h3>
      ${isActive(m) ? `
      ${open.length ? `<div class="tw"><table><tbody>${open.map(b=>{const c=DB.Classes.find(x=>x.class_id===b.class_id)||{};return `<tr><td>${esc(c.class_name||b.class_id)}<br><small>${esc(b.class_date)} - ${esc(locName(b.class_location_id))} - ${esc(b.status)}</small></td><td><button class="btn sm" data-ci="${esc(b.booking_id)}" type="button">Check in</button></td></tr>`}).join('')}</tbody></table></div>` : '<div class="empty">No open bookings.</div>'}
      <label for="d_walk">Walk-in to a class today</label>
-     <select id="d_walk">${opts(DB.Classes.map(c=>[c.class_id, classLabel(c)]))}</select>
+     <select id="d_walk">${opts(DB.Classes.filter(c=>!MYLOC||c.location_id===MYLOC).map(c=>[c.class_id, classLabel(c)]))}</select>
      <button class="btn sm" id="doWalk" type="button" style="margin-top:8px">Check in</button>` : '<div class="empty">Cancelled members cannot check in.</div>'}
      <h3 style="margin-top:16px">Recent check-ins</h3>
      ${recent.map(c=>`<div class="note">${esc(String(c.checkin_date).slice(0,10))} - ${esc(c.class_id)} - ${esc(locName(c.location_id))}</div>`).join('') || '<div class="empty">None yet.</div>'}
@@ -374,9 +496,10 @@ function renderDeskMember(){
 
 function viewPayroll(){
   const staffLoc = Object.fromEntries(DB.Staff.map(s=>[s.staff_id,s.location_id]));
-  const rows = DB.Payroll.slice().sort((a,b)=>String(b.pay_period_month).localeCompare(String(a.pay_period_month))||String(b.payroll_id).localeCompare(String(a.payroll_id))).slice(0,10);
+  const rows = DB.Payroll.slice().sort((a,b)=>(b.approval_status==='Pending approval')-(a.approval_status==='Pending approval')||String(b.pay_period_month).localeCompare(String(a.pay_period_month))||String(b.payroll_id).localeCompare(String(a.payroll_id))).slice(0,10);
+  const _unused = DB.Payroll.slice().sort((a,b)=>String(b.pay_period_month).localeCompare(String(a.pay_period_month))||String(b.payroll_id).localeCompare(String(a.payroll_id))).slice(0,10);
   return `<h2>Payroll Module</h2>
-  <p class="lead">Hours go in once and pay is calculated automatically, which replaces the paper and spreadsheet entry that caused most payroll errors.</p>
+  <p class="lead">Hours go in once and pay is calculated automatically. The module blocks impossible hours and double entries, warns about unusual hours, and holds each record for approval before it is final.</p>
   <div class="grid two">
    <div class="card form">
     <label for="p_staff">Staff member</label><select id="p_staff">${opts(DB.Staff.map(s=>[s.staff_id,`${s.staff_id} - ${s.role} - ${locName(s.location_id)} ($${num(s.hourly_rate_usd).toFixed(2)}/h)`]))}</select>
@@ -389,8 +512,8 @@ function viewPayroll(){
     <button class="btn" id="doPay" type="button">Save pay record</button>
     <div id="payOut"></div>
    </div>
-   <div class="card"><h3>Latest pay records</h3><div class="tw"><table><thead><tr><th>Month</th><th>Staff</th><th>Gym system</th><th>Hours</th><th>Pay</th><th>Error</th></tr></thead><tbody>
-    ${rows.map(p=>`<tr><td>${esc(p.pay_period_month)}</td><td>${esc(p.staff_id)}</td><td>${esc(locSys(staffLoc[p.staff_id]))}</td><td>${num(p.hours_worked)}</td><td>$${num(p.gross_pay_usd).toFixed(2)}</td><td>${p.has_manual_entry_error==='Yes'?'<span class="tag High">Yes</span>':'<span class="tag Low">No</span>'}</td></tr>`).join('')}
+   <div class="card"><h3>Latest pay records</h3><div class="tw"><table><thead><tr><th>Month</th><th>Staff</th><th>Gym system</th><th>Hours</th><th>Pay</th><th>Error</th><th>Status</th></tr></thead><tbody>
+    ${rows.map(p=>`<tr><td>${esc(p.pay_period_month)}</td><td>${esc(p.staff_id)}</td><td>${esc(locSys(staffLoc[p.staff_id]))}</td><td>${num(p.hours_worked)}</td><td>$${num(p.gross_pay_usd).toFixed(2)}</td><td>${p.has_manual_entry_error==='Yes'?'<span class="tag High">Yes</span>':'<span class="tag Low">No</span>'}</td><td>${p.approval_status==='Pending approval'?`<button class="btn sm" data-approve="${esc(p.payroll_id)}" type="button">Approve</button>`:`<span class="tag x">${esc(p.approval_status||'Historic')}</span>`}</td></tr>`).join('')}
    </tbody></table></div></div>
   </div>`;
 }
@@ -414,7 +537,7 @@ function viewData(){
 }
 
 function render(){
-  const fn = {dashboard:viewDashboard, signup:viewSignup, book:viewBook, desk:viewDesk, payroll:viewPayroll, data:viewData}[view];
+  const fn = {compare:viewCompare, outreach:viewOutreach, classes:viewClasses, dashboard:viewDashboard, signup:viewSignup, book:viewBook, desk:viewDesk, payroll:viewPayroll, data:viewData}[view];
   $('#view').innerHTML = fn();
   if(view==='book') fillBookClasses();
   if(view==='payroll') payCalc();
@@ -424,7 +547,7 @@ function render(){
 /* ============ actions ============ */
 async function guard(fn, outSel){
   try{ await fn(); }
-  catch(e){ const o = $(outSel); if(o) o.innerHTML = `<div class="err">${esc(e.message||e)}</div>`; }
+  catch(e){ if(outSel==='#view'){ toast('Could not save: ' + (e.message||e)); return; } const o = $(outSel); if(o) o.innerHTML = `<div class="err">${esc(e.message||e)}</div>`; }
 }
 async function doSignup(){
   const name = $('#f_name').value.trim();
@@ -435,7 +558,7 @@ async function doSignup(){
     is_active_member:'Yes', cancellation_date:'Not Applicable (Active Member)', cancellation_reason:'Not Applicable (Active Member)',
     signup_channel:$('#f_ch').value, monthly_checkins:0, created_at:new Date().toISOString().slice(0,19)};
   const saved = await append('Members', row);
-  $('#signupOut').innerHTML = `<div class="ok"><b>Welcome, ${esc(name)}!</b><br>Your Member ID is <b>${esc(saved.member_id)}</b>. Use it to book classes and check in.<br><button class="btn sm" id="toDash" type="button" style="margin-top:10px">See it on the dashboard</button></div>`;
+  $('#signupOut').innerHTML = `<div class="ok"><b>Welcome, ${esc(name)}!</b><br>Your Member ID is <b>${esc(saved.member_id)}</b>. Use it to book classes and check in.<br>Next step: take the first payment of ${money(PLANS[plan])}.<br><button class="btn sm" data-desk="${esc(saved.member_id)}" type="button" style="margin-top:10px">Collect payment at the desk</button></div>`;
   toast('Member added to the data source');
 }
 async function doBook(){
@@ -462,16 +585,95 @@ async function checkInMember(m, classId, bookingId){
 }
 async function doPay(){
   const s = DB.Staff.find(x=>x.staff_id===$('#p_staff').value), h = num($('#p_hours').value), mo = $('#p_month').value;
-  if(!mo || h<=0) throw new Error('Enter a month and hours worked.');
+  if(!mo) throw new Error('Choose the pay month.');
+  if(h < 1 || h > 250) throw new Error('Hours must be between 1 and 250. Please check the entry.');
+  if(DB.Payroll.some(p => p.staff_id===s.staff_id && p.pay_period_month===mo)) throw new Error('A pay record for ' + s.staff_id + ' in ' + mo + ' already exists. Double entries are blocked.');
+  const prev = DB.Payroll.filter(p => p.staff_id===s.staff_id).map(p => num(p.hours_worked));
+  const avg = prev.length ? prev.reduce((a,b)=>a+b,0)/prev.length : 0;
+  const key = s.staff_id + mo + h;
+  if(avg && Math.abs(h-avg)/avg > 0.25 && window.__payConfirm !== key){
+    window.__payConfirm = key;
+    $('#payOut').innerHTML = `<div class="err" style="background:var(--med-soft);border-color:#ecd49a;color:#6b4a0f">Warning: ${h} hours is ${Math.round(100*Math.abs(h-avg)/avg)}% away from this person's usual ${avg.toFixed(1)} hours. Check the number, then press Save again to confirm.</div>`;
+    return;
+  }
   const gross = Math.round(h*num(s.hourly_rate_usd)*100)/100;
-  await append('Payroll', {payroll_id:'', staff_id:s.staff_id, pay_period_month:mo, hours_worked:h, hourly_rate_usd:num(s.hourly_rate_usd), gross_pay_usd:gross, payment_method:$('#p_method').value, has_manual_entry_error:'No'});
-  $('#payOut').innerHTML = `<div class="ok">Saved: ${esc(s.staff_id)} - $${gross.toFixed(2)} for ${esc(mo)}.</div>`;
+  await append('Payroll', {payroll_id:'', staff_id:s.staff_id, pay_period_month:mo, hours_worked:h, hourly_rate_usd:num(s.hourly_rate_usd), gross_pay_usd:gross, payment_method:$('#p_method').value, has_manual_entry_error:'No', entry_method:'Payroll Module', approval_status:'Pending approval', created_at:new Date().toISOString().slice(0,19)});
+  window.__payConfirm = null;
+  $('#payOut').innerHTML = `<div class="ok">Saved: ${esc(s.staff_id)} - $${gross.toFixed(2)} for ${esc(mo)}. It is waiting for approval in the list.</div>`;
   toast('Pay record saved');
+  const msg = $('#payOut').innerHTML; render(); $('#payOut').innerHTML = msg;
+}
+
+/* ---- retention outreach & class fill views ---- */
+const OUT_ACTIONS = ['Friendly reminder message','Free guest pass','Offer to pause membership','Personal phone call'];
+function outStatus(o){ const m = member(o.member_id); if(!m) return 'Unknown'; if(!isActive(m)) return 'Cancelled'; return num(m.monthly_checkins) >= 4 ? 'Back on track' : 'Waiting'; }
+function viewOutreach(){
+  const risk = S().M.filter(x => isActive(x) && tier(x)==='High').sort((a,b)=>num(a.monthly_checkins)-num(b.monthly_checkins));
+  const O = DB.Outreach.filter(o => !SCOPED || o.location_id===SCOPED);
+  const done = new Set(O.map(o=>o.member_id));
+  const todo = risk.filter(x => !done.has(x.member_id)).slice(0,12);
+  const st = O.map(outStatus); const back = st.filter(s=>s==='Back on track').length, gone = st.filter(s=>s==='Cancelled').length;
+  return `<h2>Retention - At-Risk Members</h2>
+  <p class="lead">Members with fewer than 4 check-ins a month. Reach out before they cancel. Each contact is saved, and the result updates by itself when the member checks in or cancels.</p>
+  <div class="grid kpis">
+    <div class="card kpi"><div class="v">${risk.length}</div><div class="l"><b>At risk now</b><br>fewer than 4 check-ins</div></div>
+    <div class="card kpi"><div class="v">${O.length}</div><div class="l"><b>Contacted</b><br>outreach logged</div></div>
+    <div class="card kpi"><div class="v">${back}</div><div class="l"><b>Back on track</b><br>4 or more check-ins</div></div>
+    <div class="card kpi"><div class="v">${gone}</div><div class="l"><b>Cancelled anyway</b><br>after contact</div></div>
+  </div>
+  <div class="grid two">
+   <div class="card"><h3>Not contacted yet</h3><div class="tw"><table><thead><tr><th>Member</th><th>Gym</th><th>Check-ins</th><th>Action</th><th></th></tr></thead><tbody>
+    ${todo.map(x=>`<tr><td>${esc(x.member_id)}${x.full_name?'<br><small>'+esc(x.full_name)+'</small>':''}</td><td>${esc(locName(x.location_id))}</td><td><span class="tag High">${num(x.monthly_checkins)}</span></td><td><select id="ra_${esc(x.member_id)}" style="min-width:150px">${opts(OUT_ACTIONS.map(a=>[a,a]))}</select></td><td><button class="btn sm" data-reach="${esc(x.member_id)}" type="button">Reach out</button></td></tr>`).join('') || '<tr><td colspan="5" class="empty">Everyone at risk has been contacted.</td></tr>'}
+   </tbody></table></div></div>
+   <div class="card"><h3>Outreach log</h3><div class="tw"><table><thead><tr><th>Date</th><th>Member</th><th>Action</th><th>Result</th></tr></thead><tbody>
+    ${O.slice().reverse().slice(0,12).map(o=>{const s=outStatus(o);return `<tr><td>${esc(String(o.contact_date).slice(0,10))}</td><td>${esc(o.member_id)}</td><td>${esc(o.action)}</td><td><span class="tag ${s==='Back on track'?'Low':s==='Cancelled'?'High':'Medium'}">${s}</span></td></tr>`}).join('') || '<tr><td colspan="4" class="empty">No outreach yet. Reach out to a member on the left.</td></tr>'}
+   </tbody></table></div></div>
+  </div>`;
+}
+function classStats(){
+  const SS = S(); const by = {};
+  SS.C.forEach(c => { const k = by[c.class_id] = by[c.class_id] || {sess:{}, att:0}; k.sess[String(c.checkin_date).slice(0,10)] = 1; if(c.attended==='Yes') k.att++; });
+  return DB.Classes.filter(c => !SCOPED || c.location_id===SCOPED).map(c => {
+    const k = by[c.class_id] || {sess:{}, att:0}, n = Object.keys(k.sess).length, cap = num(c.class_capacity);
+    return {c, n, att:k.att, fill: n ? k.att/(n*cap) : null};
+  }).filter(x => x.n > 0).sort((a,b)=>a.fill-b.fill);
+}
+function viewClasses(){
+  const st = classStats(); const low = st.slice(0,10);
+  const tot = st.reduce((a,x)=>a+x.att,0), seats = st.reduce((a,x)=>a+x.n*num(x.c.class_capacity),0);
+  return `<h2>Class Fill Rate</h2>
+  <p class="lead">Overall fill rate ${pct(tot, seats)}. These are the emptiest classes. Invite at-risk members from the same gym to fill the seats and keep them active.</p>
+  <div class="card"><div class="tw"><table><thead><tr><th>Class</th><th>Gym</th><th>When</th><th>Fill</th><th></th></tr></thead><tbody>
+  ${low.map(x=>`<tr><td>${esc(x.c.class_name)}</td><td>${esc(locName(x.c.location_id))}</td><td>${esc(x.c.day_of_week.slice(0,3))} ${esc(x.c.class_time_slot.split(' (')[0])}</td><td style="min-width:170px"><div class="bar" style="grid-template-columns:1fr 46px;margin:0"><span class="t"><i class="${x.fill<.4?'hot':''}" style="width:${Math.min(100,100*x.fill)}%"></i></span><span class="n">${(100*x.fill).toFixed(0)}%</span></div></td><td><button class="btn sm ghost" data-invite="${esc(x.c.class_id)}" type="button">Invite at-risk members</button></td></tr>`).join('') || '<tr><td colspan="5" class="empty">No class data yet.</td></tr>'}
+  </tbody></table></div></div>`;
+}
+async function collectPayment(id){
+  const m = member(id); if(!m) return;
+  await append('Payments', {payment_id:'', member_id:m.member_id, amount_usd:num(m.monthly_fee_usd), method:'In person (front desk)', status:'Paid', receipt_no:'RCPT-' + TODAY.replace(/-/g,'') + '-' + (1000 + Math.floor(Math.random()*9000)), card_last4:'', payment_date:TODAY, created_at:new Date().toISOString().slice(0,19)});
+  toast('Payment collected');
+  window.__deskMember = m.member_id; render();
+}
+async function reachOut(id, action){
+  const m = member(id); if(!m) return;
+  await append('Outreach', {outreach_id:'', member_id:m.member_id, location_id:m.location_id, action, contacted_by:ROLEDEF[ROLE].name, contact_date:TODAY, created_at:new Date().toISOString().slice(0,19)});
+}
+async function inviteToClass(classId){
+  const c = DB.Classes.find(x=>x.class_id===classId); if(!c) return;
+  const done = new Set(DB.Outreach.filter(o=>o.action==='Invite to '+c.class_name).map(o=>o.member_id));
+  const pick = DB.Members.filter(x=>isActive(x) && tier(x)==='High' && x.location_id===c.location_id && !done.has(x.member_id)).sort((a,b)=>num(a.monthly_checkins)-num(b.monthly_checkins)).slice(0,5);
+  if(!pick.length){ toast('No more at-risk members to invite at this gym'); return; }
+  for(const m of pick) await reachOut(m.member_id, 'Invite to ' + c.class_name);
+  toast(pick.length + ' at-risk members invited');
+  render();
 }
 
 document.addEventListener('click', e => {
   const b = e.target.closest('button'); if(!b) return;
   if(b.dataset.v) return go(b.dataset.v);
+  if(b.dataset.collect) return guard(()=>collectPayment(b.dataset.collect), '#view');
+  if(b.dataset.reach){ const sel = document.getElementById('ra_'+b.dataset.reach); return guard(async()=>{ await reachOut(b.dataset.reach, sel.value); toast('Outreach saved'); render(); }, '#view'); }
+  if(b.dataset.invite) return guard(()=>inviteToClass(b.dataset.invite), '#view');
+  if(b.dataset.approve) return guard(async()=>{ await update('Payroll','payroll_id',b.dataset.approve,{approval_status:'Approved', approved_by:'Head Office', approved_on:TODAY}); toast('Pay record approved'); render(); }, '#view');
   if(b.dataset.desk){ window.__deskMember = b.dataset.desk; return go('desk'); }
   if(b.dataset.ci){ const bk = DB.Bookings.find(x=>x.booking_id===b.dataset.ci); const m = member(bk.member_id); return guard(()=>checkInMember(m, bk.class_id, bk.booking_id), '#deskOut'); }
   switch(b.id){
@@ -491,6 +693,7 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('change', e => {
   const id = e.target.id;
+  if(id==='hoLoc'){ SCOPED = e.target.value; render(); }
   if(id==='riskLoc'){ window.__riskLoc = e.target.value; render(); }
   if(id==='b_loc') fillBookClasses();
   if(id==='b_cls') fillBookDates();
@@ -498,11 +701,12 @@ document.addEventListener('change', e => {
   if(id==='t_tab'){ window.__tab = e.target.value; render(); }
 });
 document.addEventListener('input', e => {
+  if(e.target.id && e.target.id.startsWith('sc_')){ const k = e.target.id.slice(3); window.__sc[k] = Number(e.target.value); const lab = document.getElementById(e.target.id+'_v'); if(lab) lab.textContent = e.target.value + '%'; const t = $('#scenTable'); if(t) t.innerHTML = scenTable(); return; }
   if(e.target.id==='p_hours') payCalc();
   if(e.target.id==='t_q'){ window.__q = e.target.value; const p = e.target.selectionStart; render(); const q = $('#t_q'); q.focus(); q.setSelectionRange(p,p); }
 });
 document.addEventListener('keydown', e => { if(e.key==='Enter' && e.target.id==='d_mid'){ window.__deskMember = e.target.value; renderDeskMember(); } });
-window.addEventListener('storage', async e => { if(e.key==='rf_db' && !LIVE){ await loadDB(); if(view==='dashboard'||view==='data') render(); } });
+window.addEventListener('storage', async e => { if(e.key==='rf_db' && !LIVE){ await loadDB(); if(['dashboard','compare','data','outreach','classes'].includes(view)) render(); } });
 
 /* ============ start ============ */
 (async function(){
@@ -510,12 +714,14 @@ window.addEventListener('storage', async e => { if(e.key==='rf_db' && !LIVE){ aw
   $('#mode').classList.add(LIVE ? 'live' : 'demo');
   if(!LIVE) $('#btnReset').hidden = false;
   renderNav();
-  if(LIVE && !KEY){ KEY = prompt('Staff passcode (set as STAFF_KEY in Code.gs):') || ''; LS.set('rf_key', KEY); }
+  if(!ROLEDEF[ROLE]) return;
+  $('#roleSub').textContent = ROLEDEF[ROLE].name + (MYLOC ? ' - ' + MYLOC : '');
   try{ await loadDB(); }
-  catch(e){ LS.del('rf_key'); $('#view').innerHTML = '<div class="err">Could not read the data. Either the staff passcode is wrong or the Web App URL is wrong. <button class="btn sm" onclick="location.reload()" type="button">Try again</button></div>'; return; }
-  render();
+  catch(e){ $('#view').innerHTML = '<div class="err">Could not read the data. Check the Web App URL in config.js, and that STAFF_KEY in Code.gs matches RF_STAFF_KEY in config.js. <button class="btn sm" onclick="location.reload()" type="button">Try again</button></div>'; return; }
+  $('#roleSub').textContent = ROLEDEF[ROLE].name + (MYLOC ? ' - ' + locName(MYLOC) + ' gym' : ' - all gyms');
+  renderNav(); render();
   setInterval(async () => {
-    if(document.hidden || (view!=='dashboard' && view!=='data')) return;
+    if(document.hidden || !['dashboard','compare','data','outreach','classes'].includes(view)) return;
     if(document.activeElement && /INPUT|SELECT/.test(document.activeElement.tagName)) return;
     try{ await loadDB(); render(); }catch(e){}
   }, 8000);
