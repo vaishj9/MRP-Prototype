@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Riverside Fitness - Tutorial</title>
+<style>
+:root{--bg:#f3f6f7;--ink:#14232b;--muted:#5d6f78;--line:#dbe3e7;--brand:#0b6e6e}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 -apple-system,Segoe UI,Roboto,Arial,sans-serif;padding:26px 16px 60px}
+.w{max-width:900px;margin:0 auto}h1{margin:0 0 4px}h2{margin:30px 0 10px;font-size:20px}.lead{color:var(--muted);margin:0 0 18px}
+.step{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:12px 0;display:grid;grid-template-columns:42px 1fr;gap:14px}
+.n{width:36px;height:36px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:700}
+.step h3{margin:0 0 2px;font-size:17px}.who{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--brand)}
+.step p{margin:6px 0 0;color:#2f434d}.exp{background:#e1f1f0;border-radius:8px;padding:8px 12px;margin-top:8px;font-size:14px}
+table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:14px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid #edf1f3;vertical-align:top}th{background:#eaf0f2;color:var(--muted);font-size:12.5px}
+.tw{overflow-x:auto}a{color:var(--brand);font-weight:600}.btn{display:inline-block;background:var(--brand);color:#fff;border-radius:7px;padding:9px 14px;text-decoration:none;margin:4px 6px 4px 0}
+.script p{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin:8px 0}.script b{color:var(--brand)}
+</style></head><body><div class="w">
+<h1>Tutorial: how to use the prototype</h1>
+<p class="lead">Follow these 6 steps (about 3 minutes). Open the Member App in one tab and the Staff Portal in another so you can watch the numbers change. No password is needed anywhere.</p>
+<a class="btn" href="index.html">Start here: choose a role</a>
+
+<h2>Try it step by step</h2>
+<div class="step"><div class="n">1</div><div><span class="who">Member</span><h3>Join Riverside Fitness</h3>
+<p>Choose Member, click <b>Join</b>, fill the short form and press <b>Join now</b>. On the payment screen press <b>Pay</b> (the test card is already filled in).</p>
+<div class="exp">You see <b>Payment successful</b> and a receipt number, and get a Member ID. A new row appears in the Members table and in the Payments table. To show a failed payment, type 4000 0000 0000 0002 and press Pay: the payment is declined and logged. You can also choose <b>Pay at the front desk</b>, then collect it as Front Desk (step 3).</div></div></div>
+<div class="step"><div class="n">2</div><div><span class="who">Member</span><h3>Book a class at any gym</h3>
+<p>Open <b>Book a Class</b>, pick a different gym from your home gym, choose a class and date, then press <b>Book class</b>.</p>
+<div class="exp">This is the cross-location booking members told us was missing. If the class is full you join the waitlist, and you get the seat when someone cancels.</div></div></div>
+<div class="step"><div class="n">3</div><div><span class="who">Front Desk</span><h3>Check the member in</h3>
+<p>Go back to the start page, enter as Front Desk, open <b>Front Desk</b>, type the Member ID, press <b>Find</b>, then <b>Check in</b>. If the member chose to pay at the desk, press <b>Collect payment</b> first.</p>
+<div class="exp">The visit is saved, the member's check-ins this month go up by one, and the booking turns to "Checked-in". This replaces the paper sign-in sheet.</div></div></div>
+<div class="step"><div class="n">4</div><div><span class="who">Gym Manager</span><h3>Watch the dashboard update</h3>
+<p>Enter as Gym Manager and open the <b>Dashboard</b>. Members, check-ins today, fill rate and the live activity list change straight away. Open <b>Class Fill</b> to see the emptiest classes and press <b>Invite at-risk members</b>.</p>
+<div class="exp">One shared data source means every screen shows the same, current numbers.</div></div></div>
+<div class="step"><div class="n">5</div><div><span class="who">Head Office</span><h3>Keep members: retention outreach</h3>
+<p>Enter as Head Office and open <b>Retention</b>. Members with fewer than 4 check-ins a month are listed. Choose an action (for example a free guest pass) and press <b>Reach out</b>.</p>
+<div class="exp">The contact is logged. The result changes to "Back on track" when the member checks in 4 times, or "Cancelled" if they leave. This is how we track the cancellation goal.</div></div></div>
+<div class="step"><div class="n">6</div><div><span class="who">Head Office</span><h3>Pay staff without errors</h3>
+<p>Open <b>Payroll</b>. Choose a staff member and enter hours. Pay is calculated for you. Try 500 hours (blocked), or the same person and month twice (blocked), or an unusual number such as 140 hours (warning). Then press <b>Approve</b> on the new record.</p>
+<div class="exp">No one types the pay amount, impossible entries are stopped, and each record is approved before it is final. This is how we track the payroll error goal.</div></div></div>
+
+<h2>Dashboard 1 compared with Dashboard 2</h2>
+<div class="tw"><table><thead><tr><th></th><th>Dashboard 1: Cross-Location Analysis</th><th>Dashboard 2: live Staff Portal dashboard</th></tr></thead><tbody>
+<tr><td>Purpose</td><td>Explain what happened and why, using the dataset</td><td>Run the business day to day and track the three goals</td></tr>
+<tr><td>Data</td><td>One-time analysis of the dataset (600 members, 3,234 check-ins)</td><td>The same dataset as the starting point, then live: new sign-ups, bookings, check-ins and pay records update it</td></tr>
+<tr><td>Users</td><td>One view for the analysts</td><td>Different screens for Front Desk, Gym Manager and Head Office</td></tr>
+<tr><td>Actions</td><td>None (read only)</td><td>Reach out to at-risk members, invite them to empty classes, check in, approve payroll</td></tr>
+<tr><td>Shows the change</td><td>The baseline: 27.3% cancellation, 44.4% fill rate, 18.3% paper payroll error</td><td>A before-and-after panel that compares the baseline with the live numbers</td></tr>
+</tbody></table></div>
+
+<h2>How the prototype matches the proposal</h2>
+<div class="tw"><table><thead><tr><th>Goal</th><th>Problem in our data</th><th>Feature that addresses it</th></tr></thead><tbody>
+<tr><td>Fewer cancellations</td><td>164 of 600 members (27.3%) cancelled; 59 left for booking, record or scheduling problems</td><td>One Member ID at all gyms, one shared record, retention list and outreach log</td></tr>
+<tr><td>Higher class fill rate</td><td>Fill rate is about 44%</td><td>Cross-location booking, waitlist, emptiest-class list with invites</td></tr>
+<tr><td>Fewer payroll errors</td><td>18.3% error at the paper gym and 15.0% at the spreadsheet gym, versus 1.7% on the app</td><td>Automatic pay calculation, entry checks, approval step</td></tr>
+</tbody></table></div>
+
+<h2>How the screens map to the target architecture</h2>
+<div class="tw"><table><thead><tr><th>Architecture block</th><th>In the prototype</th></tr></thead><tbody>
+<tr><td>Sign-Up Form</td><td>Member App: Join (and Front Desk: Sign Up)</td></tr>
+<tr><td>In-Person Payment / Payment Service</td><td>Simulated checkout in the Member App (test card, receipt, declined case) and Collect payment at the Front Desk. The funded version uses Stripe.</td></tr>
+<tr><td>Member Booking App</td><td>Member App: Book a Class, My Account</td></tr>
+<tr><td>Front Desk App</td><td>Staff Portal as Front Desk</td></tr>
+<tr><td>Management Dashboard</td><td>Staff Portal as Gym Manager or Head Office</td></tr>
+<tr><td>Churn-risk alert</td><td>Retention list (fewer than 4 check-ins a month)</td></tr>
+<tr><td>Payroll Module</td><td>Staff Portal as Head Office: Payroll</td></tr>
+<tr><td>Access Control</td><td>Role choice on the start page (a real version would use Microsoft Entra ID)</td></tr>
+<tr><td>Shared database</td><td>Google Sheet (see the Dataset page, or open the sheet)</td></tr>
+</tbody></table></div>
+
+<h2>Video script (2 to 3 minutes)</h2>
+<div class="script">
+<p><b>0:00</b> This is the Riverside Fitness prototype. One platform, one shared data source, a different screen for each role. The link needs no password.</p>
+<p><b>0:20</b> As a member, I join, pay with a test card and see the payment confirmation and receipt. Then I book a class. I pick a different gym than my home gym, which was the top reason members cancelled.</p>
+<p><b>0:55</b> At the front desk, I check the member in. No paper sheet is needed.</p>
+<p><b>1:15</b> The gym manager's dashboard already shows the new member, the check-in and the updated fill rate. Everything comes from the same data.</p>
+<p><b>1:40</b> Head office sees members with fewer than 4 check-ins and reaches out before they cancel. The result is tracked.</p>
+<p><b>2:10</b> In payroll, pay is calculated automatically. Impossible hours and double entries are blocked, and a record is approved before it is final. Finally, the Google Sheet shows the same rows, so the data is shared and live.</p>
+</div>
+</div></body></html>
