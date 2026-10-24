@@ -113,6 +113,7 @@ td:first-child{white-space:nowrap}.btn.sm{white-space:nowrap}
 
 <script src="config.js"></script>
 <script src="seed.js"></script>
+<script src="seed2.js"></script>
 <script>
 /* ============ settings & storage ============ */
 const LS = {
@@ -342,14 +343,42 @@ function scenarioCard(){
    <div id="scenTable">${scenTable()}</div>
    <p class="note"><b>Projection, not a measured result.</b> The percentages above are assumptions the team chooses. The starting points come from the dataset: payroll errors are 1.7% at the gym already on the app; ${FIXABLE.length} cancellation reasons (booking across gyms, lost records, scheduling) are the ones the system targets. Real results can only be measured after launch with the same Dashboard 2 numbers.</p></div>`;
 }
+function metricsOf(db){ const live = DB; DB = db; try{ return metrics(); } finally{ DB = live; } }
+function dsCard(){
+  const A = window.SEED, B = window.SEED2;
+  const a = snap(A), b = snap(B), ma = metricsOf(A), mb = metricsOf(B);
+  const f = v => (100*v).toFixed(1)+'%';
+  const chg = (x,y,dir) => { const d = 100*(y-x), rel = x ? 100*(y-x)/x : 0; const good = dir===0 ? null : dir*d > 0.5, bad = dir===0 ? null : dir*d < -0.5; return `<span class="tag ${good?'Low':bad?'High':'x'}">${d>0?'+':''}${d.toFixed(1)} pts (${rel>0?'+':''}${rel.toFixed(0)}%)</span>`; };
+  const rows = [['Cancellation rate','cancel',-1,'Fewer members leave'],['Class capacity fill rate','fill',1,'More seats used'],['Payroll error rate','pay',-1,'Fewer manual payroll mistakes'],['Active membership rate','active',1,''],['No-show rate','noshow',0,'Includes people on the waitlist who could not get a seat, so it rises when classes fill up'],['Waitlist rate','wait',0,'Rises because classes now fill up: demand is higher than capacity, so more classes may be needed']];
+  const FX = ["Couldn't Book Classes Across Locations","Lost or Incorrect Manual Record","Scheduling/Booking Frustration"];
+  const fx = m => FX.reduce((s,k)=>s+(m.reasons[k]||0),0);
+  const sysRow = s => { const x = ma.pay[s], y = mb.pay[s]; return x && y ? `<tr><td>${s} gym</td><td>${f(x.bad/x.n)}</td><td><b>${f(y.bad/y.n)}</b></td><td>${chg(x.bad/x.n,y.bad/y.n,-1)}</td></tr>` : ''; };
+  return `<div class="card" style="margin-bottom:14px"><h3>Dashboard 1 (Dataset 1) vs Dashboard 2 (Dataset 2)</h3>
+   <p class="note" style="margin:0 0 10px"><b>Dataset 2 is simulated.</b> It was generated with the same generator as Dataset 1, using assumptions that reflect the proposed solution. It shows the target, not a measured result.</p>
+   <div class="tw"><table><thead><tr><th>Measure</th><th>Dashboard 1<br><small>Dataset 1: the real baseline</small></th><th>Dashboard 2<br><small>Dataset 2: simulated after launch</small></th><th>Change</th><th>What it means</th></tr></thead><tbody>
+   ${rows.map(([t,k,d,w])=>`<tr><td><b>${t}</b></td><td>${f(a[k])}</td><td><b>${f(b[k])}</b></td><td>${chg(a[k],b[k],d)}</td><td><small>${w}</small></td></tr>`).join('')}
+   <tr><td><b>Active members</b></td><td>${ma.active}</td><td><b>${mb.active}</b></td><td><span class="tag ${mb.active>ma.active?'Low':'x'}">${mb.active-ma.active>0?'+':''}${mb.active-ma.active}</span></td><td><small>out of ${ma.total} ever signed up</small></td></tr>
+   <tr><td><b>Members at high churn risk</b></td><td>${a.high}</td><td><b>${b.high}</b></td><td><span class="tag ${b.high<a.high?'Low':'x'}">${b.high-a.high>0?'+':''}${b.high-a.high}</span></td><td><small>under 4 check-ins a month</small></td></tr>
+   <tr><td><b>Cancellations from booking, record or scheduling problems</b></td><td>${fx(ma)}</td><td><b>${fx(mb)}</b></td><td><span class="tag ${fx(mb)<fx(ma)?'Low':'x'}">${fx(mb)-fx(ma)>0?'+':''}${fx(mb)-fx(ma)}</span></td><td><small>the problems the system fixes</small></td></tr>
+   <tr><td><b>Attended check-ins</b></td><td>${ma.attended}</td><td><b>${mb.attended}</b></td><td><span class="tag ${mb.attended>ma.attended?'Low':'x'}">+${mb.attended-ma.attended}</span></td><td><small>same 4-week window</small></td></tr>
+   </tbody></table></div>
+   <h3 style="margin-top:16px">Payroll errors by gym system</h3>
+   <div class="tw"><table><thead><tr><th>Gym</th><th>Dataset 1</th><th>Dataset 2</th><th>Change</th></tr></thead><tbody>${['Paper','Spreadsheet','App'].map(sysRow).join('')}</tbody></table></div>
+   <p class="note">To see every chart on Dataset 2, open the Dashboard tab and choose "Dataset 2: simulated after launch" in the Data shown box.</p></div>`;
+}
 function viewCompare(){
   return `<h2>Dashboard 1 vs Dashboard 2</h2>
-  <p class="lead">Dashboard 1 (Cross-Location Analysis) explains what happened in the dataset. Dashboard 2 keeps the same measures, updates them live, and adds a way to track the three goals.</p>
-  ${compareCard()}
-  ${scenarioCard()}`;
+  <p class="lead">Dashboard 1 (Cross-Location Analysis) explains what happened in the real dataset. Dashboard 2 measures the same things live, and with Dataset 2 shows the expected result after the solution.</p>
+  ${dsCard()}
+  ${compareCard()}`;
 }
 let lastKpi = '';
+function getDB2(){ if(!window.__DB2){ const d = JSON.parse(JSON.stringify(window.SEED2)); d.Outreach = []; d.Payments = []; window.__DB2 = d; } return window.__DB2; }
 function viewDashboard(){
+  if((window.__sim||'off')==='ds2' && window.SEED2){ const live = DB; DB = getDB2(); try{ return viewDashboardInner(); } finally{ DB = live; } }
+  return viewDashboardInner();
+}
+function viewDashboardInner(){
   const m = metrics();
   const risk = S().M.filter(x => isActive(x) && tier(x)==='High').sort((a,b) => num(a.monthly_checkins)-num(b.monthly_checkins));
   const f = window.__riskLoc || '';
@@ -373,6 +402,8 @@ function viewDashboard(){
     ['Payroll error rate', pct(m.payAll, m.payN), `${m.payAll} of ${m.payN} records; ${m.modN} entered in the module`],
     ['Membership payments', money(PS.total), `${PS.n} paid, ${PS.pending} pending, ${PS.failed} declined`]
   ];
+  const SIM = window.__sim || 'off';
+  const simBanner = SIM==='ds2' ? `<div class="card" style="margin-bottom:14px;border:2px dashed var(--warn,#d69e2e)"><b>Dataset 2: simulated data, not real measurements.</b> This is the same dashboard running on Dataset 2, a dataset generated with the effects of the proposed solution (unified booking and reminders, retention alerts, Payroll Module). Dataset 1 and the live data are not changed. Switch back to "Current data" to see them.</div>` : '';
   const sig = JSON.stringify(kp.map(k=>k[1]));
   const changed = lastKpi && sig !== lastKpi; lastKpi = sig;
   const col = {High:'#c8432b', Medium:'#d69e2e', Low:'#2f855a', New:'#2b6cb0', 'No data':'#b8c4ca'};
@@ -380,7 +411,9 @@ function viewDashboard(){
   <h2>${ROLE==='manager'?esc(locName(SCOPED))+' Gym Dashboard':'Head Office Dashboard'}</h2>
   <p class="lead">Everything here is calculated from the shared data source. Sign up a member, book a class or edit the Google Sheet, and these numbers change.</p>
   ${ROLE==='head'?`<div style="max-width:240px;margin-bottom:12px"><label for="hoLoc" style="margin-top:0">Gym</label><select id="hoLoc"><option value="">All gyms</option>${opts(DB.Locations.map(l=>[l.location_id,locName(l.location_id)]), SCOPED)}</select></div>`:''}
-  <div class="card" style="margin-bottom:14px;display:flex;flex-wrap:wrap;gap:12px;align-items:center"><div style="flex:1;min-width:240px"><b>Dashboard 1 vs Dashboard 2.</b> See the baseline from the dataset, the live numbers, and a target scenario side by side.</div><button class="btn sm" data-v="compare" type="button">Open the comparison</button></div>
+  <div style="max-width:340px;margin-bottom:12px"><label for="simMode" style="margin-top:0">Data shown</label><select id="simMode"><option value="off"${SIM==='off'?' selected':''}>Current data (Dataset 1 plus live changes)</option><option value="ds2"${SIM==='ds2'?' selected':''}>Dataset 2: simulated after launch</option></select></div>
+  ${simBanner}
+  <div class="card" style="margin-bottom:14px;display:flex;flex-wrap:wrap;gap:12px;align-items:center"><div style="flex:1;min-width:240px"><b>Dashboard 1 vs Dashboard 2.</b> See Dataset 1, Dataset 2 and the live numbers side by side.</div><button class="btn sm" data-v="compare" type="button">Open the comparison</button></div>
   <div class="grid kpis">${kp.map(k=>`<div class="card kpi${changed?' flash':''}"><div class="v">${esc(k[1])}</div><div class="l"><b>${esc(k[0])}</b><br>${esc(k[2])}</div></div>`).join('')}</div>
   <div class="grid two">
     <div class="card"><h3>Active members by location</h3>
@@ -694,6 +727,7 @@ document.addEventListener('click', e => {
 document.addEventListener('change', e => {
   const id = e.target.id;
   if(id==='hoLoc'){ SCOPED = e.target.value; render(); }
+  if(id==='simMode'){ window.__sim = e.target.value; render(); }
   if(id==='riskLoc'){ window.__riskLoc = e.target.value; render(); }
   if(id==='b_loc') fillBookClasses();
   if(id==='b_cls') fillBookDates();
