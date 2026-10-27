@@ -1,12 +1,47 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Riverside Fitness</title>
+<title>Riverside Fitness - Choose your role</title>
 <style>
-body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f3f6f7;color:#14232b;font:16px/1.5 -apple-system,Segoe UI,Roboto,Arial,sans-serif;padding:20px}
-.w{max-width:720px;width:100%}h1{margin:0 0 4px}p{color:#5d6f78;margin:0 0 22px}
-.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
-a{display:block;background:#fff;border:1px solid #dbe3e7;border-radius:12px;padding:22px;text-decoration:none;color:inherit}
-a:hover{border-color:#0b6e6e}a b{display:block;font-size:19px;color:#0b6e6e;margin-bottom:6px}a span{color:#5d6f78;font-size:14px}
-</style></head><body><div class="w"><h1>Riverside Fitness</h1><p>Team 7 prototype - one platform, two apps, one shared data source.</p>
-<div class="g"><a href="member.html"><b>Member App</b><span>For customers: join, book classes at any gym, see your visits.</span></a>
-<a href="staff.html"><b>Staff Portal</b><span>For the office: dashboard, front desk check-in, payroll, dataset. Passcode needed.</span></a></div></div></body></html>
+:root{--bg:#f3f6f7;--ink:#14232b;--muted:#5d6f78;--line:#dbe3e7;--brand:#0b6e6e}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,Segoe UI,Roboto,Arial,sans-serif;padding:28px 16px}
+.w{max-width:980px;margin:0 auto}
+h1{margin:0 0 4px;font-size:28px}.lead{color:var(--muted);margin:0 0 22px}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:14px}
+.c{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column}
+.c h2{margin:0 0 2px;font-size:18px;color:var(--brand)}.c p{margin:0 0 12px;color:var(--muted);font-size:13.5px;flex:1}
+label{font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px}
+input,select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font:inherit;margin-bottom:10px}
+button{background:var(--brand);color:#fff;border:0;border-radius:7px;padding:10px;font:inherit;font-weight:600;cursor:pointer}
+button:hover{background:#084f50}
+.tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.foot{margin-top:22px;display:flex;flex-wrap:wrap;gap:16px;font-size:14px}.foot a{color:var(--brand);font-weight:600}
+.note{font-size:12.5px;color:var(--muted);margin-top:18px}
+</style></head><body><div class="w">
+<h1>Riverside Fitness</h1>
+<p class="lead">Team 7 prototype: one platform, one shared data source, a different screen for each role. Choose a role to enter. No password needed.</p>
+<div class="g">
+ <div class="c"><span class="tag">Customer</span><h2>Member</h2><p>Join, book classes at any of the 3 gyms, see your visits and goal.</p>
+  <label for="mid">Member ID (optional)</label><input id="mid" placeholder="e.g. MEM-0003">
+  <button id="goMember" type="button">Enter as Member</button></div>
+ <div class="c"><span class="tag">Office</span><h2>Front Desk</h2><p>Register walk-ins, check members in, cancel memberships.</p>
+  <label for="locFd">Your gym</label><select id="locFd"></select>
+  <button data-role="frontdesk" data-loc="locFd" type="button">Enter as Front Desk</button></div>
+ <div class="c"><span class="tag">Office</span><h2>Gym Manager</h2><p>Dashboard for one gym, at-risk members, and the emptiest classes.</p>
+  <label for="locGm">Your gym</label><select id="locGm"></select>
+  <button data-role="manager" data-loc="locGm" type="button">Enter as Gym Manager</button></div>
+ <div class="c"><span class="tag">Office</span><h2>Head Office</h2><p>All gyms: dashboard, retention, class fill, payroll and the dataset.</p>
+  <label>&nbsp;</label><div style="flex:1"></div>
+  <button data-role="head" type="button">Enter as Head Office</button></div>
+</div>
+<div class="foot"><a href="guide.html">Tutorial: how to try each feature (3 minutes)</a></div>
+<p class="note">Prototype note: roles are chosen here instead of typing a password, so the link always opens. A real version would use Microsoft Entra ID sign-in.</p>
+</div>
+<script>
+const G=[['LOC-A','Downtown'],['LOC-B','Uptown'],['LOC-C','Eastside']];
+['locFd','locGm'].forEach(id=>document.getElementById(id).innerHTML=G.map(g=>`<option value="${g[0]}">${g[1]}</option>`).join(''));
+function set(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+function del(k){try{localStorage.removeItem(k)}catch(e){}}
+document.getElementById('goMember').onclick=()=>{const v=document.getElementById('mid').value.trim().toUpperCase();v?set('rf_member',v):del('rf_member');location.href='member.html';};
+document.querySelectorAll('[data-role]').forEach(b=>b.onclick=()=>{const l=b.dataset.loc?document.getElementById(b.dataset.loc).value:'';location.href='staff.html?role='+b.dataset.role+(l?'&loc='+l:'');});
+</script></body></html>

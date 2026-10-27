@@ -78,11 +78,14 @@ dialog::backdrop{background:rgba(10,25,30,.5)}
 .flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12.5px;color:var(--muted);margin-bottom:16px}
 .flow span{background:#fff;border:1px solid var(--line);border-radius:6px;padding:3px 8px}
 
-main{max-width:900px}a{color:var(--brand-dark)}</style></head><body>
+main{max-width:900px}a{color:var(--brand-dark)}td:first-child{white-space:nowrap}.btn.sm{white-space:nowrap}
+</style></head><body>
 <header>
   <div><h1>Riverside Fitness</h1><div class="sub">Member app - book classes at any of our 3 gyms</div></div>
   <div class="spacer"></div>
   <span id="who" class="pill" hidden></span>
+  <a href="guide.html" target="_blank" style="color:#fff;font-size:12px">Guide</a>
+  <a href="index.html" style="color:#fff;font-size:12px">Switch role</a>
   <button id="btnLogout" type="button" hidden>Log out</button>
 </header>
 <nav id="nav"></nav>
@@ -100,7 +103,7 @@ const API = (LS.get('rf_api') || window.RF_API_URL || '').trim();
 const LIVE = !!API;
 const TODAY = new Date().toISOString().slice(0,10);
 const PLANS = {Basic:35, Standard:69, Premium:120};
-const ID_RULES = {Members:['member_id','MEM-',4], Bookings:['booking_id','BKG-',5], CheckIns:['checkin_id','CHK-',6]};
+const ID_RULES = {Members:['member_id','MEM-',4], Bookings:['booking_id','BKG-',5], CheckIns:['checkin_id','CHK-',6], Payments:['payment_id','PMT-',5]};
 let me = LS.get('rf_member') || '';
 let view = me ? 'account' : 'login';
 let PUB = {Locations:[], Classes:[], Counts:{}}, ACCT = null, DB = null;
@@ -134,13 +137,13 @@ async function load(){
     if(me){
       const j = await (await fetch(API + '?member=' + encodeURIComponent(me))).json();
       const m = (j.Members||[])[0];
-      ACCT = m ? {m, bookings:j.Bookings||[], checkins:j.CheckIns||[]} : null;
+      ACCT = m ? {m, bookings:j.Bookings||[], checkins:j.CheckIns||[], payments:j.Payments||[]} : null;
     }
   } else {
-    const s = LS.get('rf_db'); DB = s ? JSON.parse(s) : JSON.parse(JSON.stringify(window.SEED));
+    const s = LS.get('rf_db'); DB = s ? JSON.parse(s) : JSON.parse(JSON.stringify(window.SEED)); DB.Payments = DB.Payments || [];
     PUB = {Locations:DB.Locations, Classes:DB.Classes, Counts:countsFrom(DB.Bookings)};
     const m = me && DB.Members.find(x => String(x.member_id).toUpperCase()===me.toUpperCase());
-    ACCT = m ? {m, bookings:DB.Bookings.filter(b=>b.member_id===m.member_id), checkins:DB.Bookings && DB.CheckIns.filter(c=>c.member_id===m.member_id).slice(-10)} : null;
+    ACCT = m ? {m, bookings:DB.Bookings.filter(b=>b.member_id===m.member_id), checkins:DB.CheckIns.filter(c=>c.member_id===m.member_id).slice(-10), payments:DB.Payments.filter(p=>p.member_id===m.member_id)} : null;
   }
 }
 async function append(tab,row){
@@ -155,7 +158,12 @@ async function cancelBooking(id){
     const r = await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'update',tab:'Bookings',key:'booking_id',value:id,changes:{status:'Cancelled'},member:me})});
     const j = await r.json(); if(!j.ok) throw new Error(j.error||'Could not cancel'); return;
   }
-  const b = DB.Bookings.find(x=>x.booking_id===id); if(b) b.status='Cancelled'; saveDemo();
+  const b = DB.Bookings.find(x=>x.booking_id===id); if(b) b.status='Cancelled';
+  if(b){ // first person on the waitlist gets the seat
+    const w = DB.Bookings.filter(x=>x.class_id===b.class_id && x.class_date===b.class_date && x.status==='Waitlisted').sort((p,q)=>String(p.created_at).localeCompare(String(q.created_at)))[0];
+    if(w) w.status='Booked';
+  }
+  saveDemo();
 }
 
 /* ---- views ---- */
@@ -170,7 +178,7 @@ function go(v){ view = v; renderNav(); render(); window.scrollTo(0,0); }
 function viewLogin(){ return `<h2>Welcome back</h2><p class="lead">Enter your Member ID to see your classes and visits.</p>
   <div class="card form"><label for="l_id">Member ID</label><input id="l_id" placeholder="e.g. MEM-0022" autocomplete="off">
   <button class="btn" id="doLogin" type="button">Log in</button><div id="loginOut"></div>
-  <p class="note">New here? <a href="#" data-v="join">Join Riverside Fitness</a></p></div>`; }
+  <p class="note">No password needed in this prototype. Try <a href="#" id="useSample">sample member MEM-0003</a>. New here? <a href="#" data-v="join">Join Riverside Fitness</a></p></div>`; }
 
 function viewJoin(){ return `<h2>Join Riverside Fitness</h2><p class="lead">One membership, three gyms. Sign up in a minute.</p>
   <div class="card form">
@@ -195,6 +203,7 @@ function viewAccount(){
    <div class="card"><h3>Upcoming classes</h3>
      ${up.map(b=>{const c=PUB.Classes.find(x=>x.class_id===b.class_id)||{};return `<div class="bar" style="grid-template-columns:1fr auto;margin:10px 0"><span><b>${esc(c.class_name||b.class_id)}</b> <span class="tag ${b.status==='Waitlisted'?'Medium':'Low'}">${esc(b.status)}</span><br><small>${esc(new Date(b.class_date+'T12:00:00').toDateString())} - ${esc(locName(b.class_location_id))}</small></span><button class="btn sm ghost" data-cancel="${esc(b.booking_id)}" type="button">Cancel</button></div>`}).join('') || '<div class="empty">No upcoming classes.</div>'}
    </div>
+   <div class="card"><h3>Membership payment</h3>${(()=>{const pd=paidOf(ACCT.payments), legacy=!ACCT.m.created_at; if(pd) return `<span class="tag Low">Paid</span><p class="note">${money(pd.amount_usd)} by ${esc(pd.method)}<br>Receipt ${esc(pd.receipt_no||'-')} on ${esc(String(pd.payment_date).slice(0,10))}</p>`; if(legacy) return '<span class="tag x">Paid</span><p class="note">Existing member, paid before the new app.</p>'; return `<span class="tag Medium">Payment pending</span><p class="note">Your first payment of ${money(ACCT.m.monthly_fee_usd)} is not complete yet.</p><button class="btn sm" id="payNow" type="button">Pay now</button>`;})()}</div>
    <div class="card"><h3>Recent visits</h3>${ACCT.checkins.slice().reverse().map(c=>{const k=PUB.Classes.find(x=>x.class_id===c.class_id)||{};return `<div class="note">${esc(String(c.checkin_date).slice(0,10))} - ${esc(k.class_name||c.class_id)} - ${esc(locName(c.location_id))}</div>`}).join('') || '<div class="empty">No visits yet.</div>'}</div>
   </div>`;
 }
@@ -217,8 +226,63 @@ function fillDates(){
   const c = PUB.Classes.find(x=>x.class_id===$('#b_cls').value);
   $('#b_date').innerHTML = c ? opts(nextDates(c.day_of_week,4).map(d=>[d,new Date(d+'T12:00:00').toDateString()])) : '';
 }
+/* ---- simulated checkout (test mode: no real card is used or charged) ---- */
+const money = v => '$' + num(v).toFixed(2);
+function paidOf(list){ return (list||[]).filter(p=>p.status==='Paid')[0]; }
+function viewPay(){
+  const p = window.__pay; if(!p) return viewLogin();
+  return `<h2>Pay for your membership</h2><p class="lead">Step 2 of 2. Your account <b>${esc(p.member_id)}</b> is created. Complete the first payment to activate it.</p>
+  <div class="grid two">
+   <div class="card"><h3>Order summary</h3>
+     <div class="bar" style="grid-template-columns:1fr auto"><span>${esc(p.plan)} membership (first month)</span><b>${money(p.amount)}</b></div>
+     <div class="bar" style="grid-template-columns:1fr auto"><span>Home gym</span><span>${esc(locName(p.loc))}</span></div>
+     <div class="bar" style="grid-template-columns:1fr auto;border-top:1px solid var(--line);padding-top:8px"><b>Total today</b><b style="font-size:20px">${money(p.amount)}</b></div>
+     <p class="note">Test mode: this is a simulated checkout. No real card is used and no money is charged. In the funded version this step is handled by Stripe.</p>
+   </div>
+   <div class="card" id="payCard"><h3>Payment method</h3>
+     <label style="display:flex;gap:8px;align-items:center;margin:6px 0"><input type="radio" name="pm" value="card" checked style="width:auto;margin:0"> Credit or debit card</label>
+     <label style="display:flex;gap:8px;align-items:center;margin:6px 0"><input type="radio" name="pm" value="desk" style="width:auto;margin:0"> Pay at the front desk</label>
+     <div id="cardFields">
+       <label for="c_name">Name on card</label><input id="c_name" value="${esc(p.name)}" autocomplete="off">
+       <label for="c_num">Card number (test)</label><input id="c_num" value="4242 4242 4242 4242" inputmode="numeric" autocomplete="off">
+       <div class="row2"><div><label for="c_exp">Expiry</label><input id="c_exp" value="12/30"></div><div><label for="c_cvc">CVC</label><input id="c_cvc" value="123"></div></div>
+       <p class="note">Test cards: 4242 4242 4242 4242 succeeds. 4000 0000 0000 0002 is declined.</p>
+     </div>
+     <button class="btn" id="doPayNow" type="button">Pay ${money(p.amount)}</button>
+     <div id="payOut"></div>
+   </div>
+  </div>`;
+}
+function newReceipt(){ return 'RCPT-' + TODAY.replace(/-/g,'') + '-' + (1000 + Math.floor(Math.random()*9000)); }
+async function doPayNow(){
+  const p = window.__pay, method = document.querySelector('input[name=pm]:checked').value;
+  const base = {payment_id:'', member_id:p.member_id, amount_usd:p.amount, payment_date:TODAY, created_at:new Date().toISOString().slice(0,19)};
+  if(method==='desk'){
+    await append('Payments', {...base, method:'Pay at front desk', status:'Pending', receipt_no:'', card_last4:''});
+    $('#payCard').innerHTML = `<h3>Payment pending</h3><div class="ok" style="background:var(--med-soft);border-color:#ecd49a"><b>Pay at the front desk.</b><br>Tell the front desk your Member ID <b>${esc(p.member_id)}</b> and they will take ${money(p.amount)}. Your account turns to Paid as soon as they do.<br><button class="btn sm" id="goAcct" data-id="${esc(p.member_id)}" type="button" style="margin-top:10px">Open my account</button></div>`;
+    return;
+  }
+  const num_ = $('#c_num').value.replace(/\s+/g,'');
+  if(!$('#c_name').value.trim()) throw new Error('Enter the name on the card.');
+  if(num_ !== '4242424242424242' && num_ !== '4000000000000002') throw new Error('This prototype only accepts the two test cards shown. Real card numbers are never stored or charged.');
+  const btn = $('#doPayNow'); btn.disabled = true; btn.textContent = 'Processing payment...';
+  await new Promise(r => setTimeout(r, 1400));
+  if(num_ === '4000000000000002'){
+    await append('Payments', {...base, method:'Card (test mode)', status:'Failed', receipt_no:'', card_last4:'0002'});
+    btn.disabled = false; btn.textContent = 'Try again';
+    $('#payOut').innerHTML = '<div class="err"><b>Payment declined.</b> Your card was declined, nothing was charged. Try the other test card or choose to pay at the front desk.</div>';
+    return;
+  }
+  const rc = newReceipt();
+  await append('Payments', {...base, method:'Card (test mode)', status:'Paid', receipt_no:rc, card_last4:'4242'});
+  $('#payCard').innerHTML = `<h3>Payment</h3><div class="ok" style="text-align:center;padding:22px"><div style="font-size:38px;color:var(--low)">&#10003;</div><div style="font-size:20px;font-weight:700">Payment successful</div>
+    <div class="note" style="margin:6px 0 12px">${money(p.amount)} paid by card ending 4242<br>Receipt ${esc(rc)}</div>
+    <div>Welcome to Riverside Fitness, ${esc(p.name.split(' ')[0])}! Your Member ID is <b>${esc(p.member_id)}</b>.</div>
+    <button class="btn" id="goAcct" data-id="${esc(p.member_id)}" type="button">Open my account</button></div>`;
+  toast('Payment successful');
+}
 function render(){
-  $('#view').innerHTML = ({login:viewLogin, join:viewJoin, account:viewAccount, book:viewBook})[view]();
+  $('#view').innerHTML = ({login:viewLogin, join:viewJoin, pay:viewPay, account:viewAccount, book:viewBook})[view]();
   if(view==='book') fillBook();
 }
 
@@ -235,8 +299,9 @@ async function doJoin(){
   const name = $('#f_name').value.trim(); if(!name) throw new Error('Please enter your name.');
   const plan=$('#f_plan').value, age=num($('#f_age').value);
   const saved = await append('Members',{member_id:'',full_name:name,location_id:$('#f_loc').value,age,age_group:ageGroup(age),gender:$('#f_gender').value,tech_comfort_level:'Medium',membership_type:plan,monthly_fee_usd:PLANS[plan],join_date:TODAY,member_tenure_months:0,is_active_member:'Yes',cancellation_date:'Not Applicable (Active Member)',cancellation_reason:'Not Applicable (Active Member)',signup_channel:$('#f_ch').value,monthly_checkins:0,created_at:new Date().toISOString().slice(0,19)});
-  $('#joinOut').innerHTML = `<div class="ok"><b>Welcome, ${esc(name)}!</b><br>Your Member ID is <b>${esc(saved.member_id)}</b>. Keep it to book classes.<br><button class="btn sm" id="goAcct" data-id="${esc(saved.member_id)}" type="button" style="margin-top:10px">Open my account</button></div>`;
-  toast('You are a member now');
+  window.__pay = {member_id:saved.member_id, name, plan, amount:PLANS[plan], loc:$('#f_loc').value};
+  toast('Account created - now pay for your membership');
+  go('pay');
 }
 async function doBook(){
   let id = me; if(!id){ id = $('#b_mid').value.trim().toUpperCase(); if(!id) throw new Error('Enter your Member ID, or join first.'); }
@@ -260,12 +325,15 @@ document.addEventListener('click', async e => {
   switch(b.id){
     case 'doLogin': return guard(doLogin,'#loginOut');
     case 'doJoin': return guard(doJoin,'#joinOut');
+    case 'doPayNow': return guard(doPayNow,'#payOut');
+    case 'payNow': window.__pay = {member_id:ACCT.m.member_id, name:ACCT.m.full_name||ACCT.m.member_id, plan:ACCT.m.membership_type, amount:num(ACCT.m.monthly_fee_usd), loc:ACCT.m.location_id}; return go('pay');
     case 'goAcct': return startSession(b.dataset.id);
     case 'doBook': return guard(doBook,'#bookOut');
     case 'btnLogout': me=''; ACCT=null; LS.del('rf_member'); view='login'; renderNav(); return render();
   }
 });
-document.addEventListener('change', e => { if(e.target.id==='b_loc') fillBook(); if(e.target.id==='b_cls') fillDates(); });
+document.addEventListener('click', e => { if(e.target.id==='useSample'){ e.preventDefault(); $('#l_id').value='MEM-0003'; } });
+document.addEventListener('change', e => { if(e.target.name==='pm'){ const f=$('#cardFields'); if(f) f.style.display = e.target.value==='card' ? '' : 'none'; $('#doPayNow').textContent = e.target.value==='card' ? 'Pay ' + money(window.__pay.amount) : 'Confirm: pay at front desk'; } if(e.target.id==='b_loc') fillBook(); if(e.target.id==='b_cls') fillDates(); });
 document.addEventListener('keydown', e => { if(e.key==='Enter' && e.target.id==='l_id') guard(doLogin,'#loginOut'); });
 (async function(){
   try{ await load(); }catch(e){ $('#view').innerHTML='<div class="err">We could not load the app. Please try again later.</div>'; return; }
