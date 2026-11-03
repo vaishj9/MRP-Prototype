@@ -1,0 +1,55 @@
+/* Riverside Fitness theme v3 - light mint/periwinkle + green accent (Glofox-inspired) */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+:root{
+  --art:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 400' preserveAspectRatio='xMidYMid slice'%3E%3Cdefs%3E%3CradialGradient id='a' cx='50%25' cy='50%25' r='50%25'%3E%3Cstop offset='0' stop-color='%237ee8d6' stop-opacity='.55'/%3E%3Cstop offset='1' stop-color='%237ee8d6' stop-opacity='0'/%3E%3C/radialGradient%3E%3CradialGradient id='b' cx='50%25' cy='50%25' r='50%25'%3E%3Cstop offset='0' stop-color='%238b93f0' stop-opacity='.55'/%3E%3Cstop offset='1' stop-color='%238b93f0' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='1250' cy='60' r='340' fill='url(%23a)'/%3E%3Ccircle cx='1500' cy='380' r='300' fill='url(%23b)'/%3E%3Cg transform='translate(1020 70)'%3E%3Crect width='190' height='96' rx='14' fill='white' fill-opacity='.92'/%3E%3Ccircle cx='34' cy='36' r='16' fill='%23c7d2fe'/%3E%3Crect x='62' y='26' width='90' height='9' rx='4' fill='%23111'/%3E%3Crect x='62' y='46' width='60' height='7' rx='3' fill='%239ca3af'/%3E%3Ccircle cx='166' cy='30' r='8' fill='%2310b981'/%3E%3Crect x='20' y='68' width='150' height='9' rx='4' fill='%23e5e7eb'/%3E%3C/g%3E%3Cg transform='translate(1190 190)'%3E%3Crect width='200' height='88' rx='14' fill='white' fill-opacity='.92'/%3E%3Crect x='18' y='20' width='42' height='42' rx='10' fill='%23e0e7ff'/%3E%3Crect x='74' y='22' width='96' height='8' rx='4' fill='%236b7280'/%3E%3Ctext x='74' y='62' font-family='Arial' font-weight='700' font-size='28' fill='%23111'%3E128%3C/text%3E%3C/g%3E%3C/svg%3E");
+  --dots:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Ccircle cx='2' cy='2' r='1.3' fill='%2523059669' fill-opacity='.08'/%3E%3C/svg%3E");
+  --ink:#111418; --muted:#5b6470; --line:#dfe3e8; --tile:#dde3e9;
+  --brand:#059f7e; --brand-dark:#047857; --green:#059f7e; --greenD:#065f46;
+  --mint:#8fe6dc; --peri:#7c8ae0;
+  --grad:linear-gradient(120deg,#a5ecea 0%,#86e3d6 45%,#7c8ae0 100%);
+}
+body{font-family:'Poppins','Segoe UI',system-ui,-apple-system,Arial,sans-serif!important;background:#fff;background-image:var(--dots);color:var(--ink)}
+:root{--lightA:#e3f8f4;--lightB:#e6e9ff}
+header{background:linear-gradient(100deg,#e9faf6,#e8ecff)!important;color:#0f2a2a!important;box-shadow:0 1px 0 var(--line)}
+header h1{font-size:20px;font-weight:600;color:#0f2a2a!important}
+header a{color:#065f46!important}
+header .pill{background:#fff!important;color:#065f46!important;border:1px solid #cfe9e3}
+header button,header .btn{background:#fff!important;color:#0f2a2a!important;border:1px solid #cfe9e3!important;box-shadow:none!important;margin-top:0}
+header .sub,header p,header small{color:#35625c!important}
+nav{background:#fff;box-shadow:none;border-bottom:1px solid var(--line)}
+nav button{font-family:inherit;font-weight:500}
+nav button.on{color:var(--greenD)!important;border-bottom-color:var(--green)!important}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:none;transition:box-shadow .2s}
+.card:hover{box-shadow:0 10px 26px rgba(17,20,24,.08)}
+.card h3{color:var(--greenD)!important;letter-spacing:1.2px!important;font-weight:600!important}
+input,select{background:#f3f4f6!important;border:1px solid var(--line)!important;border-radius:8px!important;font-family:inherit}
+.btn{background:var(--green);color:#fff;border-radius:10px;font-family:inherit;box-shadow:none}
+.btn:hover{background:var(--brand-dark)}
+.btn.ghost{background:#fff;border:1px solid var(--line);color:var(--ink)}
+/* hero band under the menu: light mint/periwinkle with photo strip on the right */
+.hero{position:relative;overflow:hidden;color:#0f2a2a;padding:44px 20px 50px;background:radial-gradient(circle at 20% 0%,#fff,transparent 50%),linear-gradient(100deg,#d9f6f0,#e2e6ff)}
+.hero .in{position:relative;z-index:2;max-width:1180px;margin:0 auto;padding:0 16px}
+.hero h2{font-size:34px;font-weight:600;margin:0 0 8px;color:#0f2a2a;letter-spacing:-.4px;line-height:1.2}
+.hero p{margin:0;font-size:15px;color:#35625c;max-width:520px}
+.hero .in::before{content:'Riverside Fitness - one platform, three gyms';display:inline-block;background:#fff;border:1px solid #cfe9e3;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:500;margin-bottom:14px;color:#065f46}
+.hero::after{content:'';position:absolute;z-index:1;right:0;top:0;bottom:0;width:58%;background-size:34% 100%;background-repeat:no-repeat;background-position:0 30%,50% 30%,100% 30%;
+ -webkit-mask-image:linear-gradient(to right,transparent,#000 45%);mask-image:linear-gradient(to right,transparent,#000 45%)}
+.hero:has(#heroTitle)::after{background-image:url(img/elliptical.jpg),url(img/zumba.jpg),url(img/yoga.jpg)}
+.hero:not(:has(#heroTitle))::after{background-image:url(img/ropes.jpg),url(img/dumbbells.jpg),url(img/kettlebell.jpg)}
+@media(max-width:700px){.hero::after{width:100%;opacity:.25}.hero h2{font-size:26px}}
+/* start page: light left panel, photo on the right */
+body.landing{min-height:100vh;color:#0f2a2a;background:linear-gradient(120deg,#dff7f2,#e4e8ff)}
+@media(min-width:900px){body.landing{background:linear-gradient(90deg,#e6f8f4 0%,#e6f8f4 40%,rgba(230,248,244,0) 40.1%),linear-gradient(rgba(255,255,255,.10),rgba(255,255,255,.10)),url(img/hero-gym.jpg) 70% center/cover no-repeat,#e6f8f4}
+ body.landing h1,body.landing .lead,body.landing .note{max-width:34%}}
+body.landing h1{font-size:40px;font-weight:600;letter-spacing:-.5px;line-height:1.15;color:#0f2a2a}
+body.landing .lead{color:#35625c}
+body.landing .c{background:#fff;color:#111418;border:1px solid #e3ece9;border-radius:16px;box-shadow:0 12px 30px rgba(15,42,42,.14)}
+body.landing .c h2{color:var(--greenD)}
+body.landing .c button{background:var(--green);color:#fff;border-radius:10px}
+body.landing a{color:#065f46}
+body.landing .note{color:#35625c}
+/* tutorial page: light photo banner */
+body.doc{background:#fff;position:relative}
+body.doc::before{content:'';position:absolute;left:0;right:0;top:0;height:230px;z-index:0;background:linear-gradient(90deg,rgba(227,248,244,.97) 0%,rgba(227,248,244,.8) 45%,rgba(230,233,255,.35) 100%),url(img/weights.jpg) center 40%/cover}
+body.doc .w{position:relative;z-index:1;background:#fff;border:1px solid var(--line);border-radius:18px;padding:26px 30px;margin-top:90px}
+body.doc h1{color:#0f2a2a}
