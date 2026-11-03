@@ -79,7 +79,7 @@ dialog::backdrop{background:rgba(10,25,30,.5)}
 .flow span{background:#fff;border:1px solid var(--line);border-radius:6px;padding:3px 8px}
 
 main{max-width:900px}a{color:var(--brand-dark)}td:first-child{white-space:nowrap}.btn.sm{white-space:nowrap}
-</style></head><body>
+</style><link rel="stylesheet" href="theme.css"></head><body>
 <header>
   <div><h1>Riverside Fitness</h1><div class="sub">Member app - book classes at any of our 3 gyms</div></div>
   <div class="spacer"></div>
@@ -89,6 +89,7 @@ main{max-width:900px}a{color:var(--brand-dark)}td:first-child{white-space:nowrap
   <button id="btnLogout" type="button" hidden>Log out</button>
 </header>
 <nav id="nav"></nav>
+<section class="hero"><div class="in"><h2 id="heroTitle">One membership. Three gyms.</h2><p id="heroSub">Join in a minute and book classes anywhere in Riverside.</p></div></section>
 <main id="view"></main>
 <div id="toast" role="status"></div>
 <script src="config.js"></script>
@@ -171,7 +172,13 @@ const VIEWS = () => me ? {account:'My Account', book:'Book a Class'} : {login:'L
 function renderNav(){
   const v = VIEWS(); $('#nav').innerHTML = Object.entries(v).map(([k,t])=>`<button type="button" data-v="${k}" class="${k===view?'on':''}">${t}</button>`).join('');
   $('#who').hidden = $('#btnLogout').hidden = !me;
-  if(ACCT) $('#who').textContent = ACCT.m.full_name || ACCT.m.member_id;
+    if(ACCT) $('#who').textContent = ACCT.m.full_name || ACCT.m.member_id;
+  const ht = $('#heroTitle'), hs = $('#heroSub');
+  if(ht){
+    if(ACCT){ ht.textContent = 'Welcome back, ' + (ACCT.m.full_name || ACCT.m.member_id); hs.textContent = 'Book a class at any of our 3 gyms.'; }
+    else { ht.textContent = 'One membership. Three gyms.'; hs.textContent = 'Join in a minute and book classes anywhere in Riverside.'; }
+  }
+}
 }
 function go(v){ view = v; renderNav(); render(); window.scrollTo(0,0); }
 
@@ -195,7 +202,7 @@ function viewAccount(){
   const m = ACCT.m, n = num(m.monthly_checkins), goal = 4;
   const up = ACCT.bookings.filter(b => (b.status==='Booked'||b.status==='Waitlisted') && b.class_date >= TODAY).sort((a,b)=>a.class_date.localeCompare(b.class_date));
   const msg = m.is_active_member!=='Yes' ? 'Your membership is cancelled.' : n >= goal ? 'Great work - you are on track this month.' : `You are ${goal-n} visit${goal-n===1?'':'s'} away from your monthly goal. Book your next class below.`;
-  return `<h2>Hi ${esc((m.full_name||m.member_id).split(' ')[0])}</h2><p class="lead">${esc(m.member_id)} - ${esc(m.membership_type)} plan - home gym ${esc(locName(m.location_id))}</p>
+  return `<h2>Hi, ${esc(m.full_name||m.member_id)}!</h2><p class="lead">${esc(m.member_id)} - ${esc(m.membership_type)} plan - home gym ${esc(locName(m.location_id))}</p>
   <div class="grid two">
    <div class="card"><h3>Visits this month</h3><div class="kpi"><div class="v">${n}</div><div class="l">goal: ${goal} visits a month</div></div>
      <div class="bar" style="grid-template-columns:1fr"><span class="t"><i style="width:${Math.min(100,100*n/goal)}%"></i></span></div><p class="note">${esc(msg)}</p>
@@ -231,7 +238,7 @@ const money = v => '$' + num(v).toFixed(2);
 function paidOf(list){ return (list||[]).filter(p=>p.status==='Paid')[0]; }
 function viewPay(){
   const p = window.__pay; if(!p) return viewLogin();
-  return `<h2>Pay for your membership</h2><p class="lead">Step 2 of 2. Your account <b>${esc(p.member_id)}</b> is created. Complete the first payment to activate it.</p>
+  return `<h2>Pay for your membership</h2><p class="lead">Step 2 of 2. Welcome, <b>${esc(p.name)}</b>! Your account <b>${esc(p.member_id)}</b> is created. Complete the first payment to activate it.</p>
   <div class="grid two">
    <div class="card"><h3>Order summary</h3>
      <div class="bar" style="grid-template-columns:1fr auto"><span>${esc(p.plan)} membership (first month)</span><b>${money(p.amount)}</b></div>
@@ -300,7 +307,7 @@ async function doJoin(){
   const plan=$('#f_plan').value, age=num($('#f_age').value);
   const saved = await append('Members',{member_id:'',full_name:name,location_id:$('#f_loc').value,age,age_group:ageGroup(age),gender:$('#f_gender').value,tech_comfort_level:'Medium',membership_type:plan,monthly_fee_usd:PLANS[plan],join_date:TODAY,member_tenure_months:0,is_active_member:'Yes',cancellation_date:'Not Applicable (Active Member)',cancellation_reason:'Not Applicable (Active Member)',signup_channel:$('#f_ch').value,monthly_checkins:0,created_at:new Date().toISOString().slice(0,19)});
   window.__pay = {member_id:saved.member_id, name, plan, amount:PLANS[plan], loc:$('#f_loc').value};
-  toast('Account created - now pay for your membership');
+  toast('Welcome, ' + name + '! Now pay for your membership');
   go('pay');
 }
 async function doBook(){
