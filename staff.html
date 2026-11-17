@@ -116,6 +116,7 @@ td:first-child{white-space:nowrap}.btn.sm{white-space:nowrap}
 <script src="config.js"></script>
 <script src="seed.js"></script>
 <script src="seed2.js"></script>
+<script src="kpi.js"></script>
 <script>
 /* ============ settings & storage ============ */
 const LS = {
@@ -371,11 +372,11 @@ function dsCard(){
 function viewCompare(){
   return `<h2>Dashboard 1 vs Dashboard 2</h2>
   <p class="lead">Dashboard 1 (Cross-Location Analysis) explains what happened in the real dataset. Dashboard 2 measures the same things live, and with Dataset 2 shows the expected result after the solution.</p>
-  ${dsCard()}
+  ${dsCard()}${RFKPI.compareCard(window.SEED, getDB2())}
   ${compareCard()}`;
 }
 let lastKpi = '';
-function getDB2(){ if(!window.__DB2){ const d = JSON.parse(JSON.stringify(window.SEED2)); d.Outreach = []; d.Payments = []; window.__DB2 = d; } return window.__DB2; }
+function getDB2(){ if(!window.__DB2){ const d = JSON.parse(JSON.stringify(window.SEED2)); d.Outreach = []; d.Payments = []; d.Feedback = RFKPI.simFeedback(d); window.__DB2 = d; } return window.__DB2; }
 function viewDashboard(){
   if((window.__sim||'off')==='ds2' && window.SEED2){ const live = DB; DB = getDB2(); try{ return viewDashboardInner(); } finally{ DB = live; } }
   return viewDashboardInner();
@@ -402,8 +403,9 @@ function viewDashboardInner(){
     ['Class fill rate', pct(m.attended, m.capSum), `${m.attended} check-ins, ${m.sessions} sessions`],
     ['Check-ins today', m.todayCheckins, `${m.todaySignups} new sign-ups today`],
     ['Payroll error rate', pct(m.payAll, m.payN), `${m.payAll} of ${m.payN} records; ${m.modN} entered in the module`],
-    ['Membership payments', money(PS.total), `${PS.n} paid, ${PS.pending} pending, ${PS.failed} declined`]
+    RFKPI.salesTile(DB, PS.total)
   ];
+  kp.push(...RFKPI.kpiTiles(DB));
   const SIM = window.__sim || 'off';
   const simBanner = SIM==='ds2' ? `<div class="card" style="margin-bottom:14px;border:2px dashed var(--warn,#d69e2e)"><b>Dataset 2: simulated data, not real measurements.</b> This is the same dashboard running on Dataset 2, a dataset generated with the effects of the proposed solution (unified booking and reminders, retention alerts, Payroll Module). Dataset 1 and the live data are not changed. Switch back to "Current data" to see them.</div>` : '';
   const sig = JSON.stringify(kp.map(k=>k[1]));
@@ -434,6 +436,7 @@ function viewDashboardInner(){
       <p class="note">Pay records entered through the Payroll Module are calculated automatically, so they add no manual errors.</p>
     </div>
   </div>
+  ${RFKPI.sections(DB, SIM==='ds2' ? window.SEED : null)}
   <div class="grid two" style="margin-top:14px">
     <div class="card"><h3>Churn-Risk Alert list</h3>
       <select id="riskLoc" aria-label="Filter by location" style="max-width:240px;margin-bottom:8px"${SCOPED?' hidden':''}><option value="">All locations (${risk.length})</option>${opts(DB.Locations.map(l=>[l.location_id,locName(l.location_id)]), f)}</select>
