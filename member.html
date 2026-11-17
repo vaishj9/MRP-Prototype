@@ -93,6 +93,7 @@ main{max-width:900px}a{color:var(--brand-dark)}td:first-child{white-space:nowrap
 <main id="view"></main>
 <div id="toast" role="status"></div>
 <script src="config.js"></script>
+<script src="kpi.js"></script>
 <script src="seed.js"></script>
 <script>
 const LS = {
@@ -104,7 +105,7 @@ const API = (LS.get('rf_api') || window.RF_API_URL || '').trim();
 const LIVE = !!API;
 const TODAY = new Date().toISOString().slice(0,10);
 const PLANS = {Basic:35, Standard:69, Premium:120};
-const ID_RULES = {Members:['member_id','MEM-',4], Bookings:['booking_id','BKG-',5], CheckIns:['checkin_id','CHK-',6], Payments:['payment_id','PMT-',5]};
+const ID_RULES = {Members:['member_id','MEM-',4], Bookings:['booking_id','BKG-',5], CheckIns:['checkin_id','CHK-',6], Payments:['payment_id','PMT-',5], Feedback:['feedback_id','FDB-',5]};
 let me = LS.get('rf_member') || '';
 let view = me ? 'account' : 'login';
 let PUB = {Locations:[], Classes:[], Counts:{}}, ACCT = null, DB = null;
@@ -138,13 +139,13 @@ async function load(){
     if(me){
       const j = await (await fetch(API + '?member=' + encodeURIComponent(me))).json();
       const m = (j.Members||[])[0];
-      ACCT = m ? {m, bookings:j.Bookings||[], checkins:j.CheckIns||[], payments:j.Payments||[]} : null;
+      ACCT = m ? {m, bookings:j.Bookings||[], checkins:j.CheckIns||[], payments:j.Payments||[], feedback:j.Feedback||[]} : null;
     }
   } else {
-    const s = LS.get('rf_db'); DB = s ? JSON.parse(s) : JSON.parse(JSON.stringify(window.SEED)); DB.Payments = DB.Payments || [];
+    const s = LS.get('rf_db'); DB = s ? JSON.parse(s) : JSON.parse(JSON.stringify(window.SEED)); DB.Payments = DB.Payments || []; DB.Feedback = DB.Feedback || [];
     PUB = {Locations:DB.Locations, Classes:DB.Classes, Counts:countsFrom(DB.Bookings)};
     const m = me && DB.Members.find(x => String(x.member_id).toUpperCase()===me.toUpperCase());
-    ACCT = m ? {m, bookings:DB.Bookings.filter(b=>b.member_id===m.member_id), checkins:DB.CheckIns.filter(c=>c.member_id===m.member_id).slice(-10), payments:DB.Payments.filter(p=>p.member_id===m.member_id)} : null;
+    ACCT = m ? {m, bookings:DB.Bookings.filter(b=>b.member_id===m.member_id), checkins:DB.CheckIns.filter(c=>c.member_id===m.member_id).slice(-10), payments:DB.Payments.filter(p=>p.member_id===m.member_id), feedback:DB.Feedback.filter(f=>f.member_id===m.member_id)} : null;
   }
 }
 async function append(tab,row){
@@ -172,14 +173,13 @@ const VIEWS = () => me ? {account:'My Account', book:'Book a Class'} : {login:'L
 function renderNav(){
   const v = VIEWS(); $('#nav').innerHTML = Object.entries(v).map(([k,t])=>`<button type="button" data-v="${k}" class="${k===view?'on':''}">${t}</button>`).join('');
   $('#who').hidden = $('#btnLogout').hidden = !me;
-    if(ACCT) $('#who').textContent = ACCT.m.full_name || ACCT.m.member_id;
+  if(ACCT) $('#who').textContent = ACCT.m.full_name || ACCT.m.member_id;
   const ht = $('#heroTitle'), hs = $('#heroSub');
   if(ht){
     if(ACCT){ ht.textContent = 'Welcome back, ' + (ACCT.m.full_name || ACCT.m.member_id); hs.textContent = 'Book a class at any of our 3 gyms.'; }
     else { ht.textContent = 'One membership. Three gyms.'; hs.textContent = 'Join in a minute and book classes anywhere in Riverside.'; }
   }
 }
-
 function go(v){ view = v; renderNav(); render(); window.scrollTo(0,0); }
 
 function viewLogin(){ return `<h2>Welcome back</h2><p class="lead">Enter your Member ID to see your classes and visits.</p>
@@ -291,6 +291,7 @@ async function doPayNow(){
 function render(){
   $('#view').innerHTML = ({login:viewLogin, join:viewJoin, pay:viewPay, account:viewAccount, book:viewBook})[view]();
   if(view==='book') fillBook();
+  if(view==='account' && window.RFKPI) RFKPI.decorateAccount();
 }
 
 /* ---- actions ---- */
@@ -328,7 +329,8 @@ document.addEventListener('click', async e => {
   const a = e.target.closest('a[data-v]'); if(a){ e.preventDefault(); return go(a.dataset.v); }
   const b = e.target.closest('button'); if(!b) return;
   if(b.dataset.v) return go(b.dataset.v);
-  if(b.dataset.cancel) return guard(async()=>{ await cancelBooking(b.dataset.cancel); await load(); toast('Booking cancelled'); render(); }, '#view');
+  if(b.dataset.rate) return guard(()=>RFKPI.submitRating(b), '#view');
+  if(b.dataset.cancel) return guard(async()=>{ const bk = ACCT.bookings.find(x=>x.booking_id===b.dataset.cancel)||{}; await cancelBooking(b.dataset.cancel); await load(); window.__rate = {ref:b.dataset.cancel, loc:bk.class_location_id||''}; toast('Booking cancelled'); render(); }, '#view');
   switch(b.id){
     case 'doLogin': return guard(doLogin,'#loginOut');
     case 'doJoin': return guard(doJoin,'#joinOut');
