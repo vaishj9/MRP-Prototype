@@ -420,6 +420,7 @@ function viewDashboardInner(){
   ${simBanner}
   <div class="card" style="margin-bottom:14px;display:flex;flex-wrap:wrap;gap:12px;align-items:center"><div style="flex:1;min-width:240px"><b>Dashboard 1 vs Dashboard 2.</b> See Dataset 1, Dataset 2 and the live numbers side by side.</div><button class="btn sm" data-v="compare" type="button">Open the comparison</button></div>
   <div class="grid kpis">${kp.map(k=>`<div class="card kpi${changed?' flash':''}"><div class="v">${esc(k[1])}</div><div class="l"><b>${esc(k[0])}</b><br>${esc(k[2])}</div></div>`).join('')}</div>
+  <div style="margin-top:14px">${RFKPI.barCompare()}</div>
   <div class="grid two">
     <div class="card"><h3>Active members by location</h3>
       ${m.byLoc.map(l=>`<div class="bar"><span>${esc(l.name)} <span class="tag x">${esc(l.sys)}</span></span><span class="t"><i style="width:${100*l.n/maxLoc}%"></i></span><span class="n">${l.n}</span></div>`).join('')}
