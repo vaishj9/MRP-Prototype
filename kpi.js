@@ -101,7 +101,7 @@ function kpiTiles(db){
   const A = cs(feedback(db)), R = reasonRows(db), top = R.rows[0];
   return [
     ['CSAT (weekly and monthly)', A.n ? f1(A.pct) + '%' : '-', A.n ? `${A.n} ratings, average ${A.avg.toFixed(2)} / 5` : 'no ratings yet'],
-    ['Top cancellation reason', top ? f1(100 * top[1] / R.total) + '%' : '-', top ? `${top[0]} (${top[1]} of ${R.total})` : 'no cancellations']
+    ['Top cancellation reason', top ? f1(100 * (R.fix >= top[1] ? R.fix : top[1]) / R.total) + '%' : '-', top ? (R.fix >= top[1] ? `system issues (${R.fix} of ${R.total})` : `${top[0]} (${top[1]} of ${R.total})`) : 'no cancellations']
   ];
 }
 
@@ -223,8 +223,8 @@ function charts(db, base){
 const TL_START = '2025-01', TL_LAUNCH = '2025-06', TL_MONTHS = 24;
 function timelineChart(o){
   const W = 1000, H = 330, L = 66, R = 100, T = 34, B = 50, n = o.cats.length;
-  const all = o.before.concat(o.after).filter(v => v !== null);
-  if(!all.length) return `<div class="card"><h3>${E(o.title)}</h3><div class="empty">No data yet.</div></div>`;
+  const all = o.before.concat(o.after, o.compare || []).filter(v => v !== null);
+  if(!all.length) return `<div class="card" style="margin-bottom:14px"><h3>${E(o.title)}</h3><div class="empty">${E(o.empty || 'No data yet.')}</div></div>`;
   const usd = o.unit === '$', top = Math.max(...all);
   const nice = t => { const raw = t / 4, p = Math.pow(10, Math.floor(Math.log10(raw))), m = raw / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p; };
   const step = usd ? nice(top * 1.1) : (top <= 2 ? .5 : top <= 5 ? 1 : top <= 10 ? 2 : top <= 25 ? 5 : top <= 60 ? 10 : 20);
@@ -232,46 +232,60 @@ function timelineChart(o){
   const fa = v => usd ? (v >= 1000 ? '$' + (v / 1000) + 'k' : '$' + v) : v + '%';
   const max = Math.max(step * 2, Math.ceil(top * 1.1 / step) * step);
   const x = i => L + i * (W - L - R) / (n - 1), y = v => T + (H - T - B) * (1 - v / max);
-  const li = o.cats.indexOf(TL_LAUNCH), lastI = o.lastIdx, xl = x(li) - (x(1) - x(0)) / 2;
+  const hw = (x(1) - x(0)) / 2, li = o.cats.indexOf(TL_LAUNCH), lastI = o.lastIdx, xl = x(li) - hw, xe = x(lastI) + hw;
   let g = `<rect x="${L}" y="${T}" width="${xl - L}" height="${H - T - B}" fill="#8a96a0" fill-opacity=".12"/>`
-        + `<rect x="${xl}" y="${T}" width="${x(lastI) + (x(1) - x(0)) / 2 - xl}" height="${H - T - B}" fill="#059f7e" fill-opacity=".08"/>`
-        + `<rect x="${x(lastI) + (x(1) - x(0)) / 2}" y="${T}" width="${W - R - x(lastI) - (x(1) - x(0)) / 2}" height="${H - T - B}" fill="#8a96a0" fill-opacity=".05"/>`;
+        + `<rect x="${xl}" y="${T}" width="${xe - xl}" height="${H - T - B}" fill="#059f7e" fill-opacity=".08"/>`
+        + `<rect x="${xe}" y="${T}" width="${W - R - xe}" height="${H - T - B}" fill="#8a96a0" fill-opacity=".05"/>`;
   for(let v = 0; v <= max + 1e-9; v += step) g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="#d9e1e5" stroke-width="1"/><text x="${L - 8}" y="${y(v) + 5}" text-anchor="end" font-size="15">${fa(Math.round(v * 100) / 100)}</text>`;
   o.cats.forEach((c,i) => { if(i % 3 === 0 || i === n - 1) g += `<text x="${x(i)}" y="${H - 16}" text-anchor="middle" font-size="14">${E(mlab(c))}</text>`; });
+  const beforeHas = o.before.some(v => v !== null);
   g += `<line x1="${xl}" x2="${xl}" y1="${T - 6}" y2="${H - B}" stroke="#2d3b45" stroke-width="2" stroke-dasharray="5 4"/>`
      + `<text x="${xl - 8}" y="${T - 12}" text-anchor="end" font-size="14" font-weight="700">Dataset 1 (real)</text>`
      + `<text x="${xl + 8}" y="${T - 12}" text-anchor="start" font-size="14" font-weight="700" style="fill:${GREEN}">Prototype launch, Jun 2025 &rarr; Dataset 2 (simulated)</text>`
-     + `<text x="${(x(lastI) + (x(1) - x(0)) / 2 + W - R) / 2}" y="${T + 22}" text-anchor="middle" font-size="13">no data yet</text>`;
-  const draw = (vals, col, name, from, to) => {
+     + `<text x="${(xe + W - R) / 2}" y="${T + 22}" text-anchor="middle" font-size="13">no data yet</text>`
+     + (beforeHas ? '' : `<text x="${(L + xl) / 2}" y="${(T + H - B) / 2}" text-anchor="middle" font-size="13">no data in</text><text x="${(L + xl) / 2}" y="${(T + H - B) / 2 + 17}" text-anchor="middle" font-size="13">this period</text>`);
+  const lastOf = (vals, from, to) => { let r; vals.forEach((v,i) => { if(v !== null && i >= from && i <= to) r = i; }); return r; };
+  const used = [];
+  const draw = (vals, col, name, from, to, dash) => {
     let d = '', pen = false;
     vals.forEach((v,i) => { if(v === null || i < from || i > to){ pen = false; return; } d += (pen ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1) + ' '; pen = true; });
-    g += `<path d="${d}" fill="none" stroke="${col}" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    if(d) g += `<path d="${d}" fill="none" stroke="${col}" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"${dash ? ' stroke-dasharray="7 5"' : ''}/>`;
     vals.forEach((v,i) => { if(v !== null && i >= from && i <= to) g += `<circle cx="${x(i)}" cy="${y(v)}" r="4.8" fill="#fff" stroke="${col}" stroke-width="2.4"><title>${E(name)} - ${E(mlab(o.cats[i]))}: ${fv(v)}</title></circle>`; });
+    const k = lastOf(vals, from, to);
+    if(k !== undefined){ let ly = y(vals[k]) + 5; while(used.some(u => Math.abs(u - ly) < 17)) ly += 17; used.push(ly); g += `<text x="${x(k) + 10}" y="${ly}" font-size="15" font-weight="700" style="fill:${col}">${fv(vals[k])}</text>`; }
   };
-  draw(o.before, GREY, 'Dataset 1 (before)', 0, li - 1);
-  draw(o.after, GREEN, 'Dataset 2 (after)', li, lastI);
-  const lb = o.before.map((v,i) => v === null ? -1 : i).filter(i => i >= 0 && i < li).pop();
-  if(lb !== undefined) g += `<text x="${x(lb) - 12}" y="${y(o.before[lb]) + 22}" text-anchor="end" font-size="15" font-weight="700" style="fill:${GREY}">${fv(o.before[lb])}</text>`;
-  if(o.after[lastI] !== null) g += `<text x="${x(lastI) + 10}" y="${y(o.after[lastI]) + 5}" font-size="15" font-weight="700" style="fill:${GREEN}">${fv(o.after[lastI])}</text>`;
+  draw(o.before, GREY, 'Dataset 1', 0, li - 1, false);
+  if(o.compare) draw(o.compare, GREY, 'Dataset 1 (same months)', li, lastI, true);
+  draw(o.after, GREEN, 'Dataset 2', li, lastI, false);
   const avg = (a, f, t) => { const v = a.slice(f, t + 1).filter(z => z !== null); return v.length ? v.reduce((s,z) => s + z, 0) / v.length : null; };
-  const ab = avg(o.before, 0, li - 1), aa = avg(o.after, li, lastI);
-  const tbl = `<details style="margin-top:6px"><summary class="note" style="cursor:pointer">Show the numbers</summary><div class="tw"><table class="kpiT"><thead><tr><th>Month</th><th class="r">Before (Dataset 1)</th><th class="r">After (Dataset 2)</th></tr></thead><tbody>${o.cats.map((c,i) => (o.before[i] === null || i >= li) && (o.after[i] === null || i < li) ? '' : `<tr><td>${E(mlab(c))}</td><td class="r">${i < li && o.before[i] !== null ? fv(o.before[i]) : '-'}</td><td class="r">${i >= li && i <= lastI && o.after[i] !== null ? fv(o.after[i]) : '-'}</td></tr>`).join('')}</tbody></table></div></details>`;
-  return `<div class="card" style="margin-bottom:14px"><h3>${E(o.title)}</h3><svg class="lc" viewBox="0 0 ${W} ${H}" role="img" aria-label="${E(o.title)}">${g}</svg>
-   <p class="note" style="margin:6px 0 0">${ab !== null && aa !== null ? `Average ${fv(ab)} before launch &rarr; ${fv(aa)} after launch. ` : ''}${o.note}</p>${tbl}</div>`;
+  let sum = '';
+  if(beforeHas){ const ab = avg(o.before, 0, li - 1), aa = avg(o.after, li, lastI); if(ab !== null && aa !== null) sum = `Average ${fv(ab)} before launch &rarr; ${fv(aa)} after launch. `; }
+  else if(o.compare){ const idx = o.after.map((v,i) => v !== null && o.compare[i] !== null ? i : -1).filter(i => i >= 0); if(idx.length){ const a1 = idx.reduce((s,i) => s + o.compare[i], 0) / idx.length, a2 = idx.reduce((s,i) => s + o.after[i], 0) / idx.length; sum = `Same months (${E(mlab(o.cats[idx[0]]))} to ${E(mlab(o.cats[idx[idx.length - 1]]))}): Dataset 1 average ${fv(a1)} vs Dataset 2 average ${fv(a2)}. `; } }
+  const lg = `<div class="lgd"><span><b style="border-color:${GREY}"></b>Dataset 1${o.compare ? ' (dashed = same months as Dataset 2)' : ''}</span><span><b style="border-color:${GREEN}"></b>Dataset 2 (simulated)</span></div>`;
+  const rows = o.cats.map((c,i) => [c, o.before[i], o.compare ? o.compare[i] : null, o.after[i]]).filter(r => r[1] !== null || r[2] !== null || r[3] !== null);
+  const tbl = `<details style="margin-top:6px"><summary class="note" style="cursor:pointer">Show the numbers</summary><div class="tw"><table class="kpiT"><thead><tr><th>Month</th><th class="r">Dataset 1</th><th class="r">Dataset 2</th></tr></thead><tbody>${rows.map(r => `<tr><td>${E(mlab(r[0]))}</td><td class="r">${r[1] !== null ? fv(r[1]) : r[2] !== null ? fv(r[2]) : '-'}</td><td class="r">${r[3] !== null ? fv(r[3]) : '-'}</td></tr>`).join('')}</tbody></table></div></details>`;
+  return `<div class="card" style="margin-bottom:14px"><h3>${E(o.title)}</h3><svg class="lc" viewBox="0 0 ${W} ${H}" role="img" aria-label="${E(o.title)}">${g}</svg>${lg}
+   <p class="note" style="margin:6px 0 0">${sum}${o.note}</p>${tbl}</div>`;
 }
 function timeline(){
-  const D1 = window.SEED, D2 = window.SEED2;
-  if(!D1 || !D2) return '';
+  const D1 = window.SEED;
+  if(!D1 || !window.SEED2) return '';
+  const D2 = Object.assign({}, window.SEED2); D2.Feedback = simFeedback(D2);
   const cats = Array.from({length: TL_MONTHS}, (_, i) => addMonth(TL_START, i));
   const li = cats.indexOf(TL_LAUNCH);
   const lastM = members(D2).filter(gone).map(m => String(m.cancellation_date).slice(0,7)).sort().pop() || TL_LAUNCH;
   const lastIdx = Math.max(li, cats.indexOf(lastM) < 0 ? cats.length - 1 : cats.indexOf(lastM));
   const mk = (fn, o) => {
-    const b = fn(D1, cats, 'month').map((v,i) => i < li ? v : null), a = fn(D2, cats, 'month').map((v,i) => i >= li && i <= lastIdx ? v : null);
-    return timelineChart(Object.assign({cats, before:b, after:a, lastIdx}, o));
+    const v1 = fn(D1, cats, 'month'), v2 = fn(D2, cats, 'month');
+    const before = v1.map((v,i) => i < li ? v : null), after = v2.map((v,i) => i >= li && i <= lastIdx ? v : null);
+    const compare = o.compare ? v1.map((v,i) => i >= li && i <= lastIdx ? v : null) : null;
+    return timelineChart(Object.assign({}, o, {cats, before, after, compare, lastIdx}));
   };
-  return mk(churnVals, {title:'Cancellation rate (% per month): Dataset 1 vs Dataset 2', note:'Cancellations in the month &divide; members active at the start of the month. Lower is better.'})
-       + mk(salesVals, {title:'Sales ($ per month): Dataset 1 vs Dataset 2', unit:'$', note:'Membership fees of members active at the start of the month. Higher is better.'});
+  return mk(churnVals, {title:'Cancellation rate (% per month)', note:'Cancellations in the month &divide; members active at the start of the month. Lower is better.'})
+       + mk(salesVals, {title:'Sales ($ per month)', unit:'$', note:'Membership fees of members active at the start of the month. Higher is better.'})
+       + mk(fillVals, {title:'Class fill rate (% per month)', compare:true, note:'Attended check-ins &divide; seats in the classes held that month. Higher is better. Class check-ins in the data cover only Jun 15 to Jul 9 2026.', empty:'No check-ins yet.'})
+       + mk(csatVals, {title:'Customer satisfaction, CSAT (% per month)', note:'Ratings of 4 or 5 &divide; all ratings that month. Higher is better. Dataset 1 has no ratings, because satisfaction was not measured before the solution; Dataset 2 ratings are simulated.', empty:'No ratings yet.'}, )
+       + mk(payVals, {title:'Payroll error rate (% per month)', compare:true, note:'Payroll records with a manual entry error &divide; all payroll records that month. Lower is better. Payroll records in the data cover Mar to Aug 2026.', empty:'No payroll records yet.'});
 }
 
 /* ---------- Dataset 1 vs Dataset 2 bar comparison ---------- */
@@ -318,7 +332,7 @@ function barCompare(){
     g += `<text x="${cx}" y="${H - B + 26}" text-anchor="middle" font-size="15">${E(l1)}</text><text x="${cx}" y="${H - B + 46}" text-anchor="middle" font-size="15">${E(l2)}</text>`;
   });
   g += `<line x1="${L}" x2="${W - R}" y1="${y(0)}" y2="${y(0)}" stroke="#2d3b45" stroke-width="1.5"/>`;
-  return `<div class="card" style="margin-bottom:14px"><h3>Dataset 1 vs Dataset 2</h3><svg class="lc" viewBox="0 0 ${W} ${H}" role="img" aria-label="Dataset 1 vs Dataset 2 KPI comparison">${g}</svg>
+  return `<div class="card" style="margin-bottom:14px"><h3>Before and after: changes in main KPIs</h3><svg class="lc" viewBox="0 0 ${W} ${H}" role="img" aria-label="Before and after changes in main KPIs, Dataset 1 vs Dataset 2">${g}</svg>
    <p class="note" style="margin:6px 0 0">Active membership = active &divide; all members. Cancellation rate = cancelled &divide; all members. Capacity filling = attended check-ins &divide; class seats. Experience-related cancellations = cancellations for cross-location booking, lost or incorrect records, booking frustration or lack of class variety &divide; all cancellations. Top cancellation reason share: Dataset 1 = ${a.topName} (${f1(a.top)}%), Dataset 2 = ${b.topName} (${f1(b.top)}%). Lower is better for the cancellation measures. Dataset 2 is simulated.</p></div>`;
 }
 
@@ -326,8 +340,7 @@ function sections(db, base){
   css();
   return `<h2 class="kpiH">KPI measurement</h2>
   <div class="grid two">${shareCard(db)}${csatCard(db, base ? 'Simulated ratings for Dataset 2, not real members.' : '')}</div>
-  <h2 class="kpiH">Dataset 1 vs Dataset 2</h2>${barCompare()}${timeline()}
-  <h2 class="kpiH">Progress over time (weekly and monthly side by side)</h2>${charts(db, base)}`;
+  <h2 class="kpiH">Progress over time: before and after the prototype (Jan 2025 to Dec 2026)</h2>${timeline()}`;
 }
 
 /* ---------- Dataset 2: simulated ratings ---------- */
@@ -400,5 +413,5 @@ async function submitRating(b){
   await load(); toast('Thank you for your feedback'); render();
 }
 
-window.RFKPI = {periods, sections, kpiTiles, salesTile, simFeedback, compareCard, decorateAccount, submitRating};
+window.RFKPI = {periods, barCompare, sections, kpiTiles, salesTile, simFeedback, compareCard, decorateAccount, submitRating};
 })();
