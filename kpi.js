@@ -28,11 +28,27 @@ function css(){
   .lgd{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;color:var(--muted,#5d6f78);margin-top:6px}
   .lgd b{display:inline-block;width:18px;height:0;border-top:3px solid;vertical-align:middle;margin-right:6px}
   .lgd b.d{border-top-style:dashed}
-  .kpiH{font-size:18px;margin:22px 0 8px}
+  .kpiH{font-size:24px;margin:26px 0 8px}
+  .kpiSub{font-size:18px;margin:22px 0 8px}
+  body{font-size:17px}
+  body .kpi .v{font-size:36px}
+  body .kpi .l{font-size:15px}
+  body .card h3{font-size:16px}
+  body h2{font-size:26px}
+  body table,body .kpiT{font-size:15.5px}
+  body .bar{font-size:15px}
+  body .note,body .empty,body .feed{font-size:14.5px}
+  body nav button{font-size:16px}
+  body .tag{font-size:13px}
+  body label{font-size:14.5px}
+  body .btn.sm{font-size:14px}
+  .lgd{font-size:14.5px}
+  .rv{font-size:15.5px}
+  .stars button{font-size:30px}
   .rb{display:block;height:10px;background:#e6ecef;border-radius:6px;overflow:hidden;min-width:70px}
   .rb i{display:block;height:100%;background:${GREEN};border-radius:6px}
   .rb i.hot{background:#c8432b}
-  .kpiT{width:100%;border-collapse:collapse;font-size:13.5px}
+  .kpiT{width:100%;border-collapse:collapse}
   .kpiT th,.kpiT td{padding:6px 8px;text-align:left;border-bottom:1px solid var(--line,#dbe3e7);vertical-align:middle}
   .kpiT td.r,.kpiT th.r{text-align:right;white-space:nowrap}`;
   document.head.appendChild(s);
@@ -71,19 +87,20 @@ function csatCard(db, note){
    ${A.n ? `<div class="kpi" style="margin-bottom:8px"><div class="v">${f1(A.pct)}%</div><div class="l">satisfied (4 or 5 stars) &middot; average ${A.avg.toFixed(2)} / 5 &middot; ${A.n} ratings</div></div>
    ${row('After a class', F.filter(f => f.source === 'After class'))}
    ${row('At cancellation', F.filter(f => f.source === 'At cancellation'))}
+   ${row('In the member portal', F.filter(f => f.source === 'Member portal'))}
    ${locs.map(l => row(String(l.location_name).replace('Riverside Fitness - ',''), F.filter(f => f.location_id === l.location_id))).join('')}
-   <p class="note"><b>Formula:</b> CSAT = ratings of 4 or 5 &divide; all ratings. In this data: ${A.good} &divide; ${A.n} = ${f1(A.pct)}%.<br>Members rate in the Member App, 1 to 5 stars, after a class and when they cancel a booking.${note ? '<br>' + note : ''}</p>`
+   <p class="note"><b>Formula:</b> CSAT = ratings of 4 or 5 &divide; all ratings. In this data: ${A.good} &divide; ${A.n} = ${f1(A.pct)}%.<br>Members rate in the Member App, 1 to 5 stars: any time in the member portal, after a class, and when they cancel a booking.${note ? '<br>' + note : ''}</p>`
    : `<div class="empty">No ratings yet. Members rate in the Member App (1 to 5 stars) after a class and when they cancel a booking. CSAT = ratings of 4 or 5 &divide; all ratings.</div>`}
   </div>`;
 }
 function salesTile(db, collected){
   const M = members(db).filter(m => !gone(m)), tot = M.reduce((a,m) => a + N(m.monthly_fee_usd), 0);
-  return ['Sales (monthly)', '$' + Math.round(tot).toLocaleString('en-US'), `${M.length} active members x plan fees; $${N(collected).toFixed(2)} paid by new sign-ups`];
+  return ['Sales ($ / month)', '$' + Math.round(tot).toLocaleString('en-US'), `${M.length} active members x plan fees; $${N(collected).toFixed(2)} paid by new sign-ups`];
 }
 function kpiTiles(db){
   const A = cs(feedback(db)), R = reasonRows(db), top = R.rows[0];
   return [
-    ['CSAT', A.n ? f1(A.pct) + '%' : '-', A.n ? `${A.n} ratings, average ${A.avg.toFixed(2)} / 5` : 'no ratings yet'],
+    ['CSAT (weekly and monthly)', A.n ? f1(A.pct) + '%' : '-', A.n ? `${A.n} ratings, average ${A.avg.toFixed(2)} / 5` : 'no ratings yet'],
     ['Top cancellation reason', top ? f1(100 * top[1] / R.total) + '%' : '-', top ? `${top[0]} (${top[1]} of ${R.total})` : 'no cancellations']
   ];
 }
@@ -94,98 +111,223 @@ const dlab = s => { const d = new Date(s + 'T12:00:00'); return MON[d.getMonth()
 const mlab = s => MON[N(s.slice(5,7)) - 1] + ' ' + s.slice(2,4);
 const addMonth = (m, k) => { const d = new Date(N(m.slice(0,4)), N(m.slice(5,7)) - 1 + k, 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2,'0'); };
 
-function churnCats(db){
-  const ms = members(db).filter(gone).map(m => String(m.cancellation_date).slice(0,7)).filter(x => /^\d{4}-\d{2}$/.test(x)).sort();
-  if(!ms.length) return [];
-  const end = ms[ms.length - 1], out = [];
-  for(let k = -11; k <= 0; k++) out.push(addMonth(end, k));
+const qkey = s => String(s).slice(0,4) + ' Q' + Math.ceil(N(String(s).slice(5,7)) / 3);
+const keyOf = (g, d) => g === 'week' ? mondayOf(d) : g === 'quarter' ? qkey(d) : String(d).slice(0,7);
+const labOf = (g, k) => g === 'week' ? dlab(k) : g === 'quarter' ? k.slice(2,4) + ' ' + k.slice(5) : mlab(k);
+const uniq = a => [...new Set(a)].sort();
+const lastN = (a, k) => a.slice(Math.max(0, a.length - k));
+function activeAt(db, start){
+  return members(db).filter(x => String(x.join_date).slice(0,10) < start && (!gone(x) || String(x.cancellation_date).slice(0,10) >= start));
+}
+/* categories: weeks and months end at the last cancellation (weeks: last 12; months: last 12) */
+function churnCats(db, g){
+  const ds = members(db).filter(gone).map(m => String(m.cancellation_date).slice(0,10)).filter(x => /^\d{4}-\d{2}-\d{2}$/.test(x)).sort();
+  if(!ds.length) return [];
+  const last = ds[ds.length - 1], out = [];
+  if(g === 'week'){ const d = new Date(mondayOf(last) + 'T12:00:00'); for(let k = 11; k >= 0; k--){ const x = new Date(d); x.setDate(x.getDate() - 7 * k); out.push(x.toISOString().slice(0,10)); } }
+  else { const end = last.slice(0,7); for(let k = -11; k <= 0; k++) out.push(addMonth(end, k)); }
   return out;
 }
-function churnVals(db, cats){
+const startOf = (g, c) => g === 'week' ? c : c + '-01';
+function churnVals(db, cats, g){
   const M = members(db);
-  return cats.map(m => {
-    const start = m + '-01';
-    const act = M.filter(x => String(x.join_date).slice(0,10) < start && (!gone(x) || String(x.cancellation_date).slice(0,10) >= start)).length;
-    const can = M.filter(x => gone(x) && String(x.cancellation_date).slice(0,7) === m).length;
+  return cats.map(c => {
+    const act = activeAt(db, startOf(g, c)).length;
+    const can = M.filter(x => gone(x) && keyOf(g, x.cancellation_date) === c).length;
     return act ? 100 * can / act : null;
   });
 }
-function salesVals(db, cats){
-  const M = members(db);
-  return cats.map(m => { const start = m + '-01'; return M.filter(x => String(x.join_date).slice(0,10) < start && (!gone(x) || String(x.cancellation_date).slice(0,10) >= start)).reduce((a,x) => a + N(x.monthly_fee_usd), 0); });
-}
-function fillCats(db){
-  return [...new Set((db.CheckIns || []).filter(c => !scope() || c.location_id === scope()).map(c => mondayOf(c.checkin_date)))].sort();
-}
-function fillVals(db, cats){
+function salesVals(db, cats, g){ return cats.map(c => activeAt(db, startOf(g, c)).reduce((a,x) => a + N(x.monthly_fee_usd), 0)); }
+const CI = db => (db.CheckIns || []).filter(c => !scope() || c.location_id === scope());
+function fillCats(db, g){ return uniq(CI(db).map(c => keyOf(g, c.checkin_date))); }
+function fillVals(db, cats, g){
   const caps = Object.fromEntries((db.Classes || []).map(c => [c.class_id, N(c.class_capacity)]));
-  const C = (db.CheckIns || []).filter(c => !scope() || c.location_id === scope());
+  const C = CI(db);
   return cats.map(w => {
-    const rows = C.filter(c => mondayOf(c.checkin_date) === w), sess = {}; let att = 0;
+    const rows = C.filter(c => keyOf(g, c.checkin_date) === w), sess = {}; let att = 0;
     rows.forEach(c => { sess[c.class_id + '|' + String(c.checkin_date).slice(0,10)] = 1; if(c.attended === 'Yes') att++; });
     const cap = Object.keys(sess).reduce((a,k) => a + (caps[k.split('|')[0]] || 0), 0);
     return cap ? 100 * att / cap : null;
   });
 }
-function csatCats(db){ return [...new Set(feedback(db).map(f => mondayOf(f.created_at)))].sort(); }
-function csatVals(db, cats){
+function csatCats(db, g){ return uniq(feedback(db).map(f => keyOf(g, f.created_at))); }
+function csatVals(db, cats, g){
   const F = feedback(db);
-  return cats.map(w => { const s = cs(F.filter(f => mondayOf(f.created_at) === w)); return s.n ? s.pct : null; });
+  return cats.map(w => { const s = cs(F.filter(f => keyOf(g, f.created_at) === w)); return s.n ? s.pct : null; });
 }
-function payCats(db){ return [...new Set((db.Payroll || []).map(p => String(p.pay_period_month).slice(0,7)))].sort(); }
-function payVals(db, cats){
+function payCats(db, g){ return uniq((db.Payroll || []).map(p => keyOf(g, String(p.pay_period_month).slice(0,7) + '-01'))); }
+function payVals(db, cats, g){
   const sl = Object.fromEntries((db.Staff || []).map(s => [s.staff_id, s.location_id]));
   const P = (db.Payroll || []).filter(p => !scope() || sl[p.staff_id] === scope());
-  return cats.map(m => { const r = P.filter(p => String(p.pay_period_month).slice(0,7) === m); return r.length ? 100 * r.filter(p => p.has_manual_entry_error === 'Yes').length / r.length : null; });
+  return cats.map(m => { const r = P.filter(p => keyOf(g, String(p.pay_period_month).slice(0,7) + '-01') === m); return r.length ? 100 * r.filter(p => p.has_manual_entry_error === 'Yes').length / r.length : null; });
+}
+const avgOf = a => { const v = a.filter(x => x !== null); return v.length ? v.reduce((s,x) => s + x, 0) / v.length : null; };
+/* time-frame figures shown under the headline KPI tiles */
+function periods(db){
+  const cm = churnCats(db, 'month'), fw = fillCats(db, 'week'), pm = payCats(db, 'month');
+  const ch = avgOf(churnVals(db, cm, 'month')), fl = lastN(fillVals(db, fw, 'week'), 1)[0], pe = avgOf(payVals(db, pm, 'month'));
+  return {
+    churn: ch === null ? '' : `avg ${f1(ch)}% / month`,
+    fill: fl == null ? '' : `latest week ${f1(fl)}% / week`,
+    pay: pe === null ? '' : `avg ${f1(pe)}% / month`
+  };
 }
 
 function lineChart(o){
-  const W = 560, H = 220, L = 44, R = 70, T = 16, B = 36, n = o.cats.length;
+  const W = 560, H = 250, L = 54, R = 84, T = 18, B = 44, n = o.cats.length;
   const all = o.series.flatMap(s => s.vals).filter(v => v !== null);
   if(!n || !all.length) return `<div class="card"><h3>${E(o.title)}</h3><div class="empty">${E(o.empty || 'No data yet.')}</div></div>`;
   const usd = o.unit === '$', top = Math.max(...all);
   const nice = t => { const raw = t / 4, p = Math.pow(10, Math.floor(Math.log10(raw))), m = raw / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p; };
-  const step = usd ? nice(top * 1.1) : (top <= 10 ? 2 : top <= 25 ? 5 : top <= 60 ? 10 : 20);
+  const step = usd ? nice(top * 1.1) : (top <= 2 ? .5 : top <= 5 ? 1 : top <= 10 ? 2 : top <= 25 ? 5 : top <= 60 ? 10 : 20);
   const fv = v => usd ? '$' + Math.round(v).toLocaleString('en-US') : f1(v) + '%';
   const fa = v => usd ? (v >= 1000 ? '$' + (v / 1000) + 'k' : '$' + v) : v + '%';
   const max = Math.max(step * 2, Math.ceil(top * 1.1 / step) * step);
   const x = i => L + (n > 1 ? i * (W - L - R) / (n - 1) : (W - L - R) / 2);
   const y = v => T + (H - T - B) * (1 - v / max);
   let g = '';
-  for(let v = 0; v <= max; v += step){ g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="#d9e1e5" stroke-width="1"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end" font-size="11">${fa(v)}</text>`; }
-  const skip = Math.ceil(n / 7);
-  o.cats.forEach((c,i) => { if(i % skip === 0 || i === n - 1) g += `<text x="${x(i)}" y="${H - 12}" text-anchor="middle" font-size="11">${E(o.labels[i])}</text>`; });
+  for(let v = 0; v <= max + 1e-9; v += step){ g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="#d9e1e5" stroke-width="1"/><text x="${L - 7}" y="${y(v) + 5}" text-anchor="end" font-size="14">${fa(Math.round(v * 100) / 100)}</text>`; }
+  const skip = Math.ceil(n / 5);
+  o.cats.forEach((c,i) => { if(i % skip === 0 || i === n - 1) g += `<text x="${x(i)}" y="${H - 14}" text-anchor="middle" font-size="14">${E(o.labels[i])}</text>`; });
+  const used = [];
   o.series.forEach(s => {
     const col = s.color || GREEN, dash = s.dash ? ' stroke-dasharray="6 5"' : '';
     let d = '', pen = false;
     s.vals.forEach((v,i) => { if(v === null){ pen = false; return; } d += (pen ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1) + ' '; pen = true; });
-    g += `<path d="${d}" fill="none" stroke="${col}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"${dash}/>`;
-    s.vals.forEach((v,i) => { if(v !== null) g += `<circle cx="${x(i)}" cy="${y(v)}" r="4" fill="#fff" stroke="${col}" stroke-width="2"><title>${E(s.name)} - ${E(o.labels[i])}: ${fv(v)}</title></circle>`; });
+    g += `<path d="${d}" fill="none" stroke="${col}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"${dash}/>`;
+    s.vals.forEach((v,i) => { if(v !== null) g += `<circle cx="${x(i)}" cy="${y(v)}" r="4.5" fill="#fff" stroke="${col}" stroke-width="2.2"><title>${E(s.name)} - ${E(o.labels[i])}: ${fv(v)}</title></circle>`; });
     const li = s.vals.map((v,i) => v === null ? -1 : i).filter(i => i >= 0).pop();
-    if(li !== undefined) g += `<text x="${x(li) + 9}" y="${y(s.vals[li]) + 4}" font-size="12" font-weight="700" style="fill:${col}">${fv(s.vals[li])}</text>`;
+    if(li !== undefined){ let ly = y(s.vals[li]) + 5; while(used.some(u => Math.abs(u - ly) < 17)) ly += 17; used.push(ly); g += `<text x="${x(li) + 10}" y="${ly}" font-size="15" font-weight="700" style="fill:${col}">${fv(s.vals[li])}</text>`; }
   });
   const lg = o.series.length > 1 ? `<div class="lgd">${o.series.map(s => `<span><b class="${s.dash ? 'd' : ''}" style="border-color:${s.color || GREEN}"></b>${E(s.name)}</span>`).join('')}</div>` : '';
   const tbl = `<details style="margin-top:6px"><summary class="note" style="cursor:pointer">Show the numbers</summary><div class="tw"><table class="kpiT"><thead><tr><th>${E(o.xName)}</th>${o.series.map(s => `<th class="r">${E(s.name)}</th>`).join('')}</tr></thead><tbody>${o.labels.map((l,i) => `<tr><td>${E(l)}</td>${o.series.map(s => `<td class="r">${s.vals[i] === null ? '-' : fv(s.vals[i])}</td>`).join('')}</tr>`).join('')}</tbody></table></div></details>`;
   return `<div class="card"><h3>${E(o.title)}</h3><svg class="lc" viewBox="0 0 ${W} ${H}" role="img" aria-label="${E(o.title)}">${g}</svg>${lg}<p class="note" style="margin:6px 0 0">${o.note}</p>${tbl}</div>`;
 }
 
+const GR = {week:['per week','Week starting','Weeks'], month:['per month','Month','Months'], quarter:['per quarter','Quarter','Quarters']};
 function charts(db, base){
-  const cc = churnCats(db), fc = fillCats(db), pc = payCats(db), sc = csatCats(db);
   const nm = base ? 'Dataset 2 (simulated)' : 'Current data', bn = 'Dataset 1 (baseline)';
-  const two = (vals, bvals) => base ? [{name:nm, vals, color:GREEN}, {name:bn, vals:bvals, color:GREY, dash:true}] : [{name:nm, vals, color:GREEN}];
-  return `<div class="grid two">
-   ${lineChart({title:'Cancellation rate by month', xName:'Month', cats:cc, labels:cc.map(mlab), series:two(churnVals(db,cc), base ? churnVals(base,cc) : null), note:'Cancellations in the month &divide; members active at the start of the month. Lower is better.', empty:'No cancellations with a date yet.'})}
-   ${lineChart({title:'Monthly sales by month', unit:'$', xName:'Month', cats:cc, labels:cc.map(mlab), series:two(salesVals(db,cc), base ? salesVals(base,cc) : null), note:'Sales = membership fees of all members active at the start of the month (plan price x members). Higher is better.', empty:'No data yet.'})}
-   ${lineChart({title:'Class fill rate by week', xName:'Week starting', cats:fc, labels:fc.map(dlab), series:two(fillVals(db,fc), base ? fillVals(base,fc) : null), note:'Attended check-ins &divide; seats in the classes held that week. Higher is better.', empty:'No check-ins yet.'})}
-   ${lineChart({title:'Customer satisfaction (CSAT) by week', xName:'Week starting', cats:sc, labels:sc.map(dlab), series:[{name:nm, vals:csatVals(db,sc), color:GREEN}], note:'Ratings of 4 or 5 &divide; all ratings that week. Higher is better.' + (base ? ' Dataset 1 has no ratings, because satisfaction was not measured before the solution.' : ''), empty:'No ratings yet. They appear as members rate in the Member App.'})}
-   ${lineChart({title:'Payroll error rate by month', xName:'Pay month', cats:pc, labels:pc.map(mlab), series:two(payVals(db,pc), base ? payVals(base,pc) : null), note:'Payroll records with a manual entry error &divide; all payroll records that month. Lower is better.', empty:'No payroll records yet.'})}
-  </div>`;
+  const row = (title, grains, o) => `<h3 class="kpiSub">${E(title)}</h3><div class="grid two">${grains.map(g => {
+    const cats = o.cats(db, g);
+    const mk = d => o.vals(d, cats, g);
+    const series = o.noBase || !base ? [{name:nm, vals:mk(db), color:GREEN}] : [{name:nm, vals:mk(db), color:GREEN}, {name:bn, vals:mk(base), color:GREY, dash:true}];
+    return lineChart({title:`${o.name} ${(o.unit === '$' ? '($ ' : '(% ') + GR[g][0].replace('per ', 'per ') + ')'}`, unit:o.unit, xName:GR[g][1], cats, labels:cats.map(c => labOf(g, c)), series, note:o.note + ' Shown ' + GR[g][0] + '.' + (o.extra && base ? ' ' + o.extra : ''), empty:o.empty});
+  }).join('')}</div>`;
+  return row('Cancellation rate: weekly and monthly', ['week','month'], {name:'Cancellation rate', cats:churnCats, vals:churnVals, note:'Cancellations in the period &divide; members active at the start of the period. Lower is better.', empty:'No cancellations with a date yet.'})
+   + row('Sales: weekly and monthly view', ['week','month'], {name:'Sales', unit:'$', cats:churnCats, vals:salesVals, note:'Membership fees of all members active at the start of the period (plan price x members, a monthly amount). Higher is better.', empty:'No data yet.'})
+   + row('Class fill rate: weekly and monthly', ['week','month'], {name:'Class fill rate', cats:fillCats, vals:fillVals, note:'Attended check-ins &divide; seats in the classes held in the period. Higher is better.', empty:'No check-ins yet.'})
+   + row('Customer satisfaction (CSAT): weekly and monthly', ['week','month'], {name:'CSAT', noBase:true, cats:csatCats, vals:csatVals, note:'Ratings of 4 or 5 &divide; all ratings in the period. Higher is better.' + (base ? ' Dataset 1 has no ratings, because satisfaction was not measured before the solution.' : ''), empty:'No ratings yet. They appear as members rate in the Member App.'})
+   + row('Payroll error rate: monthly and quarterly', ['month','quarter'], {name:'Payroll error rate', cats:payCats, vals:payVals, note:'Payroll records with a manual entry error &divide; all payroll records in the period. Payroll is run monthly, so weekly is not available. Lower is better.', empty:'No payroll records yet.'});
 }
+/* ---------- before / after launch timeline (Jan 2025 - Dec 2026) ---------- */
+const TL_START = '2025-01', TL_LAUNCH = '2025-06', TL_MONTHS = 24;
+function timelineChart(o){
+  const W = 1000, H = 330, L = 66, R = 100, T = 34, B = 50, n = o.cats.length;
+  const all = o.before.concat(o.after).filter(v => v !== null);
+  if(!all.length) return `<div class="card"><h3>${E(o.title)}</h3><div class="empty">No data yet.</div></div>`;
+  const usd = o.unit === '$', top = Math.max(...all);
+  const nice = t => { const raw = t / 4, p = Math.pow(10, Math.floor(Math.log10(raw))), m = raw / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p; };
+  const step = usd ? nice(top * 1.1) : (top <= 2 ? .5 : top <= 5 ? 1 : top <= 10 ? 2 : top <= 25 ? 5 : top <= 60 ? 10 : 20);
+  const fv = v => usd ? '$' + Math.round(v).toLocaleString('en-US') : f1(v) + '%';
+  const fa = v => usd ? (v >= 1000 ? '$' + (v / 1000) + 'k' : '$' + v) : v + '%';
+  const max = Math.max(step * 2, Math.ceil(top * 1.1 / step) * step);
+  const x = i => L + i * (W - L - R) / (n - 1), y = v => T + (H - T - B) * (1 - v / max);
+  const li = o.cats.indexOf(TL_LAUNCH), lastI = o.lastIdx, xl = x(li) - (x(1) - x(0)) / 2;
+  let g = `<rect x="${L}" y="${T}" width="${xl - L}" height="${H - T - B}" fill="#8a96a0" fill-opacity=".12"/>`
+        + `<rect x="${xl}" y="${T}" width="${x(lastI) + (x(1) - x(0)) / 2 - xl}" height="${H - T - B}" fill="#059f7e" fill-opacity=".08"/>`
+        + `<rect x="${x(lastI) + (x(1) - x(0)) / 2}" y="${T}" width="${W - R - x(lastI) - (x(1) - x(0)) / 2}" height="${H - T - B}" fill="#8a96a0" fill-opacity=".05"/>`;
+  for(let v = 0; v <= max + 1e-9; v += step) g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="#d9e1e5" stroke-width="1"/><text x="${L - 8}" y="${y(v) + 5}" text-anchor="end" font-size="15">${fa(Math.round(v * 100) / 100)}</text>`;
+  o.cats.forEach((c,i) => { if(i % 3 === 0 || i === n - 1) g += `<text x="${x(i)}" y="${H - 16}" text-anchor="middle" font-size="14">${E(mlab(c))}</text>`; });
+  g += `<line x1="${xl}" x2="${xl}" y1="${T - 6}" y2="${H - B}" stroke="#2d3b45" stroke-width="2" stroke-dasharray="5 4"/>`
+     + `<text x="${xl - 8}" y="${T - 12}" text-anchor="end" font-size="14" font-weight="700">Dataset 1 (real)</text>`
+     + `<text x="${xl + 8}" y="${T - 12}" text-anchor="start" font-size="14" font-weight="700" style="fill:${GREEN}">Prototype launch, Jun 2025 &rarr; Dataset 2 (simulated)</text>`
+     + `<text x="${(x(lastI) + (x(1) - x(0)) / 2 + W - R) / 2}" y="${T + 22}" text-anchor="middle" font-size="13">no data yet</text>`;
+  const draw = (vals, col, name, from, to) => {
+    let d = '', pen = false;
+    vals.forEach((v,i) => { if(v === null || i < from || i > to){ pen = false; return; } d += (pen ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1) + ' '; pen = true; });
+    g += `<path d="${d}" fill="none" stroke="${col}" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    vals.forEach((v,i) => { if(v !== null && i >= from && i <= to) g += `<circle cx="${x(i)}" cy="${y(v)}" r="4.8" fill="#fff" stroke="${col}" stroke-width="2.4"><title>${E(name)} - ${E(mlab(o.cats[i]))}: ${fv(v)}</title></circle>`; });
+  };
+  draw(o.before, GREY, 'Dataset 1 (before)', 0, li - 1);
+  draw(o.after, GREEN, 'Dataset 2 (after)', li, lastI);
+  const lb = o.before.map((v,i) => v === null ? -1 : i).filter(i => i >= 0 && i < li).pop();
+  if(lb !== undefined) g += `<text x="${x(lb) - 12}" y="${y(o.before[lb]) + 22}" text-anchor="end" font-size="15" font-weight="700" style="fill:${GREY}">${fv(o.before[lb])}</text>`;
+  if(o.after[lastI] !== null) g += `<text x="${x(lastI) + 10}" y="${y(o.after[lastI]) + 5}" font-size="15" font-weight="700" style="fill:${GREEN}">${fv(o.after[lastI])}</text>`;
+  const avg = (a, f, t) => { const v = a.slice(f, t + 1).filter(z => z !== null); return v.length ? v.reduce((s,z) => s + z, 0) / v.length : null; };
+  const ab = avg(o.before, 0, li - 1), aa = avg(o.after, li, lastI);
+  const tbl = `<details style="margin-top:6px"><summary class="note" style="cursor:pointer">Show the numbers</summary><div class="tw"><table class="kpiT"><thead><tr><th>Month</th><th class="r">Before (Dataset 1)</th><th class="r">After (Dataset 2)</th></tr></thead><tbody>${o.cats.map((c,i) => (o.before[i] === null || i >= li) && (o.after[i] === null || i < li) ? '' : `<tr><td>${E(mlab(c))}</td><td class="r">${i < li && o.before[i] !== null ? fv(o.before[i]) : '-'}</td><td class="r">${i >= li && i <= lastI && o.after[i] !== null ? fv(o.after[i]) : '-'}</td></tr>`).join('')}</tbody></table></div></details>`;
+  return `<div class="card" style="margin-bottom:14px"><h3>${E(o.title)}</h3><svg class="lc" viewBox="0 0 ${W} ${H}" role="img" aria-label="${E(o.title)}">${g}</svg>
+   <p class="note" style="margin:6px 0 0">${ab !== null && aa !== null ? `Average ${fv(ab)} before launch &rarr; ${fv(aa)} after launch. ` : ''}${o.note}</p>${tbl}</div>`;
+}
+function timeline(){
+  const D1 = window.SEED, D2 = window.SEED2;
+  if(!D1 || !D2) return '';
+  const cats = Array.from({length: TL_MONTHS}, (_, i) => addMonth(TL_START, i));
+  const li = cats.indexOf(TL_LAUNCH);
+  const lastM = members(D2).filter(gone).map(m => String(m.cancellation_date).slice(0,7)).sort().pop() || TL_LAUNCH;
+  const lastIdx = Math.max(li, cats.indexOf(lastM) < 0 ? cats.length - 1 : cats.indexOf(lastM));
+  const mk = (fn, o) => {
+    const b = fn(D1, cats, 'month').map((v,i) => i < li ? v : null), a = fn(D2, cats, 'month').map((v,i) => i >= li && i <= lastIdx ? v : null);
+    return timelineChart(Object.assign({cats, before:b, after:a, lastIdx}, o));
+  };
+  return mk(churnVals, {title:'Cancellation rate (% per month): Dataset 1 vs Dataset 2', note:'Cancellations in the month &divide; members active at the start of the month. Lower is better.'})
+       + mk(salesVals, {title:'Sales ($ per month): Dataset 1 vs Dataset 2', unit:'$', note:'Membership fees of members active at the start of the month. Higher is better.'});
+}
+
+/* ---------- Dataset 1 vs Dataset 2 bar comparison ---------- */
+function overallFill(db){
+  const caps = Object.fromEntries((db.Classes || []).map(c => [c.class_id, N(c.class_capacity)]));
+  const sess = {}; let att = 0;
+  CI(db).forEach(c => { sess[c.class_id + '|' + String(c.checkin_date).slice(0,10)] = 1; if(c.attended === 'Yes') att++; });
+  const cap = Object.keys(sess).reduce((a,k) => a + (caps[k.split('|')[0]] || 0), 0);
+  return cap ? 100 * att / cap : null;
+}
+const EXPERIENCE = FIX.concat(['Lack of Class Variety']);
+function barStats(db){
+  const M = members(db), g = M.filter(gone), t = g.length, cnt = {};
+  g.forEach(m => { const r = m.cancellation_reason || 'Other'; cnt[r] = (cnt[r] || 0) + 1; });
+  const sys = FIX.reduce((a,r) => a + (cnt[r] || 0), 0), exp = EXPERIENCE.reduce((a,r) => a + (cnt[r] || 0), 0);
+  const single = Object.entries(cnt).sort((a,b) => b[1] - a[1])[0] || ['-', 0];
+  const top = sys >= single[1] ? {n:sys, name:'system issues'} : {n:single[1], name:single[0].toLowerCase()};
+  return {
+    active: M.length ? 100 * M.filter(m => !gone(m)).length / M.length : null,
+    cancel: M.length ? 100 * t / M.length : null,
+    fill: overallFill(db),
+    exp: t ? 100 * exp / t : null,
+    top: t ? 100 * top.n / t : null, topName: top.name
+  };
+}
+function barCompare(){
+  const D1 = window.SEED, D2 = window.SEED2;
+  if(!D1 || !D2) return '';
+  const a = barStats(D1), b = barStats(D2);
+  const items = [['Active membership','active'],['Cancellation rate','cancel'],['Capacity filling','fill'],['Experience-related cancellations','exp'],['Top cancellation reason share','top']];
+  const W = 1000, H = 380, L = 62, R = 24, T = 50, B = 78, gw = (W - L - R) / items.length, bw = Math.min(70, gw * .3);
+  const y = v => T + (H - T - B) * (1 - v / 100);
+  let g = '';
+  for(let v = 0; v <= 100; v += 20) g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="#d9e1e5" stroke-width="1"/><text x="${L - 8}" y="${y(v) + 5}" text-anchor="end" font-size="15">${v}</text>`;
+  g += `<text x="16" y="${(T + H - B) / 2}" font-size="15" text-anchor="middle" transform="rotate(-90 16 ${(T + H - B) / 2})">Percent</text>`;
+  g += `<rect x="${W - 330}" y="10" width="16" height="16" rx="3" fill="${GREY}"/><text x="${W - 308}" y="23" font-size="15">Dataset 1</text><rect x="${W - 190}" y="10" width="16" height="16" rx="3" fill="${GREEN}"/><text x="${W - 168}" y="23" font-size="15">Dataset 2 (simulated)</text>`;
+  items.forEach(([lab, k], i) => {
+    const cx = L + gw * i + gw / 2;
+    [[a[k], GREY, -bw - 2, 'Dataset 1'], [b[k], GREEN, 2, 'Dataset 2']].forEach(([v, col, dx, nm]) => {
+      if(v === null) return;
+      g += `<rect x="${cx + dx}" y="${y(v)}" width="${bw}" height="${y(0) - y(v)}" rx="4" fill="${col}"><title>${nm} - ${E(lab)}: ${f1(v)}%</title></rect><text x="${cx + dx + bw / 2}" y="${y(v) - 7}" text-anchor="middle" font-size="15" font-weight="700">${f1(v)}%</text>`;
+    });
+    const words = lab.split(' '), half = Math.ceil(words.length / 2), l1 = words.slice(0, half).join(' '), l2 = words.slice(half).join(' ');
+    g += `<text x="${cx}" y="${H - B + 26}" text-anchor="middle" font-size="15">${E(l1)}</text><text x="${cx}" y="${H - B + 46}" text-anchor="middle" font-size="15">${E(l2)}</text>`;
+  });
+  g += `<line x1="${L}" x2="${W - R}" y1="${y(0)}" y2="${y(0)}" stroke="#2d3b45" stroke-width="1.5"/>`;
+  return `<div class="card" style="margin-bottom:14px"><h3>Dataset 1 vs Dataset 2</h3><svg class="lc" viewBox="0 0 ${W} ${H}" role="img" aria-label="Dataset 1 vs Dataset 2 KPI comparison">${g}</svg>
+   <p class="note" style="margin:6px 0 0">Active membership = active &divide; all members. Cancellation rate = cancelled &divide; all members. Capacity filling = attended check-ins &divide; class seats. Experience-related cancellations = cancellations for cross-location booking, lost or incorrect records, booking frustration or lack of class variety &divide; all cancellations. Top cancellation reason share: Dataset 1 = ${a.topName} (${f1(a.top)}%), Dataset 2 = ${b.topName} (${f1(b.top)}%). Lower is better for the cancellation measures. Dataset 2 is simulated.</p></div>`;
+}
+
 function sections(db, base){
   css();
   return `<h2 class="kpiH">KPI measurement</h2>
   <div class="grid two">${shareCard(db)}${csatCard(db, base ? 'Simulated ratings for Dataset 2, not real members.' : '')}</div>
-  <h2 class="kpiH">Progress over time</h2>${charts(db, base)}`;
+  <h2 class="kpiH">Dataset 1 vs Dataset 2</h2>${barCompare()}${timeline()}
+  <h2 class="kpiH">Progress over time (weekly and monthly side by side)</h2>${charts(db, base)}`;
 }
 
 /* ---------- Dataset 2: simulated ratings ---------- */
@@ -199,6 +341,10 @@ function simFeedback(db){
     } else if(r() < 0.03){
       out.push({feedback_id:'FDB-' + String(++i).padStart(5,'0'), member_id:c.member_id, ref_id:c.checkin_id, location_id:c.location_id, source:'At cancellation', rating:pick(r,{5:.12,4:.26,3:.30,2:.20,1:.12}), created_at:String(c.checkin_date).slice(0,10) + 'T18:30:00'});
     }
+  });
+  const d0 = new Date('2026-06-15T12:00:00');
+  (db.Members || []).forEach(m => {
+    if(r() < 0.35){ const d = new Date(d0); d.setDate(d.getDate() + Math.floor(r() * 25)); out.push({feedback_id:'FDB-' + String(++i).padStart(5,'0'), member_id:m.member_id, ref_id:m.member_id, location_id:m.location_id, source:'Member portal', rating:pick(r,{5:.40,4:.40,3:.14,2:.05,1:.01}), created_at:d.toISOString().slice(0,10) + 'T12:00:00'}); }
   });
   return out;
 }
@@ -227,6 +373,10 @@ function decorateAccount(){
   if(typeof ACCT === 'undefined' || !ACCT) return;
   css();
   const view = document.getElementById('view');
+  const mine = (ACCT.feedback || []).filter(f => f.source === 'Member portal').sort((a,b) => String(a.created_at).localeCompare(String(b.created_at))).pop();
+  const pc = document.createElement('div'); pc.className = 'card'; pc.style.marginBottom = '14px';
+  pc.innerHTML = `<h3>Rate your experience</h3><p class="note" style="margin-top:0">How satisfied are you with Riverside Fitness overall? Choose 1 star (very unhappy) to 5 stars (very happy). You can rate any time.</p>${stars({src:'Member portal', ref:ACCT.m.member_id, loc:ACCT.m.location_id})}${mine ? `<p class="note">Your latest rating: <b>${'&#9733;'.repeat(N(mine.rating))}${'&#9734;'.repeat(5 - N(mine.rating))}</b> (${E(String(mine.created_at).slice(0,10))}). Thank you!</p>` : ''}`;
+  view.insertBefore(pc, view.firstChild);
   if(window.__rate){
     const d = document.createElement('div'); d.className = 'card'; d.style.marginBottom = '14px';
     d.innerHTML = `<h3>How was your booking experience?</h3><p class="note">You just cancelled a booking. How satisfied are you with Riverside Fitness, from 1 star (very unhappy) to 5 stars (very happy)?</p>${stars({src:'At cancellation', ref:window.__rate.ref, loc:window.__rate.loc})}`;
@@ -250,5 +400,5 @@ async function submitRating(b){
   await load(); toast('Thank you for your feedback'); render();
 }
 
-window.RFKPI = {sections, kpiTiles, salesTile, simFeedback, compareCard, decorateAccount, submitRating};
+window.RFKPI = {periods, sections, kpiTiles, salesTile, simFeedback, compareCard, decorateAccount, submitRating};
 })();
