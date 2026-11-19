@@ -396,13 +396,14 @@ function viewDashboardInner(){
     ...DB.CheckIns.filter(x=>x.created_at).map(x=>({t:x.created_at, h:`<b>${esc(x.member_id)}</b> checked in at ${esc(locName(x.location_id))}`}))
   ].sort((a,b)=>String(b.t).localeCompare(String(a.t))).slice(0,8);
   const PS = payStats();
+  const PER = RFKPI.periods(DB);
   const kp = [
-    ['Active members', m.active, `${m.total} ever signed up`],
-    ['Churn rate', pct(m.gone, m.total), `${m.gone} cancelled`],
-    ['High churn risk', T.High, 'fewer than 4 check-ins / month'],
-    ['Class fill rate', pct(m.attended, m.capSum), `${m.attended} check-ins, ${m.sessions} sessions`],
-    ['Check-ins today', m.todayCheckins, `${m.todaySignups} new sign-ups today`],
-    ['Payroll error rate', pct(m.payAll, m.payN), `${m.payAll} of ${m.payN} records; ${m.modN} entered in the module`],
+    ['Active members', m.active, `${m.total} ever signed up (today)`],
+    ['Churn rate (all sign-ups)', pct(m.gone, m.total), `${m.gone} cancelled; ${PER.churn}`],
+    ['High churn risk (members)', T.High, 'fewer than 4 check-ins / month'],
+    ['Class fill rate (overall)', pct(m.attended, m.capSum), `${m.attended} check-ins, ${m.sessions} sessions; ${PER.fill}`],
+    ['Check-ins (per day, today)', m.todayCheckins, `${m.todaySignups} new sign-ups today`],
+    ['Payroll error rate (overall)', pct(m.payAll, m.payN), `${m.payAll} of ${m.payN} records; ${PER.pay}`],
     RFKPI.salesTile(DB, PS.total)
   ];
   kp.push(...RFKPI.kpiTiles(DB));
