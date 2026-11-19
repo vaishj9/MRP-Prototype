@@ -105,7 +105,7 @@ const API = (LS.get('rf_api') || window.RF_API_URL || '').trim();
 const LIVE = !!API;
 const TODAY = new Date().toISOString().slice(0,10);
 const PLANS = {Basic:35, Standard:69, Premium:120};
-const ID_RULES = {Members:['member_id','MEM-',4], Bookings:['booking_id','BKG-',5], CheckIns:['checkin_id','CHK-',6], Payments:['payment_id','PMT-',5], Feedback:['feedback_id','FDB-',5]};
+const ID_RULES = {Members:['member_id','MEM-',4], Bookings:['booking_id','BKG-',5], CheckIns:['checkin_id','CHK-',6], Payments:['payment_id','PMT-',5], Feedback:['feedback_id','FDB-',5], Reminders:['reminder_id','RMD-',5]};
 let me = LS.get('rf_member') || '';
 let view = me ? 'account' : 'login';
 let PUB = {Locations:[], Classes:[], Counts:{}}, ACCT = null, DB = null;
@@ -139,13 +139,13 @@ async function load(){
     if(me){
       const j = await (await fetch(API + '?member=' + encodeURIComponent(me))).json();
       const m = (j.Members||[])[0];
-      ACCT = m ? {m, bookings:j.Bookings||[], checkins:j.CheckIns||[], payments:j.Payments||[], feedback:j.Feedback||[]} : null;
+      ACCT = m ? {m, bookings:j.Bookings||[], checkins:j.CheckIns||[], payments:j.Payments||[], feedback:j.Feedback||[], reminders:j.Reminders||[]} : null;
     }
   } else {
-    const s = LS.get('rf_db'); DB = s ? JSON.parse(s) : JSON.parse(JSON.stringify(window.SEED)); DB.Payments = DB.Payments || []; DB.Feedback = DB.Feedback || [];
+    const s = LS.get('rf_db'); DB = s ? JSON.parse(s) : JSON.parse(JSON.stringify(window.SEED)); DB.Payments = DB.Payments || []; DB.Feedback = DB.Feedback || []; DB.Reminders = DB.Reminders || [];
     PUB = {Locations:DB.Locations, Classes:DB.Classes, Counts:countsFrom(DB.Bookings)};
     const m = me && DB.Members.find(x => String(x.member_id).toUpperCase()===me.toUpperCase());
-    ACCT = m ? {m, bookings:DB.Bookings.filter(b=>b.member_id===m.member_id), checkins:DB.CheckIns.filter(c=>c.member_id===m.member_id).slice(-10), payments:DB.Payments.filter(p=>p.member_id===m.member_id), feedback:DB.Feedback.filter(f=>f.member_id===m.member_id)} : null;
+    ACCT = m ? {m, bookings:DB.Bookings.filter(b=>b.member_id===m.member_id), checkins:DB.CheckIns.filter(c=>c.member_id===m.member_id).slice(-10), payments:DB.Payments.filter(p=>p.member_id===m.member_id), feedback:DB.Feedback.filter(f=>f.member_id===m.member_id), reminders:DB.Reminders.filter(r=>r.member_id===m.member_id)} : null;
   }
 }
 async function append(tab,row){
@@ -154,6 +154,40 @@ async function append(tab,row){
     const j = await r.json(); if(!j.ok) throw new Error(j.error||'Could not save'); return j.row;
   }
   row[ID_RULES[tab][0]] = nextId(tab); DB[tab].push(row); saveDemo(); return row;
+}
+/* ---- class reminders ---- */
+const RMD_OPTS = [['1 day', 1440], ['2 hours', 120], ['30 minutes', 30]];
+function classStart(b){
+  const c = PUB.Classes.find(x => x.class_id === b.class_id) || {};
+  const m = String(c.class_time_slot || '').match(/\((\d+)(?::\d+)?(am|pm)?\s*-\s*(\d+)(am|pm)/i);
+  let h = 9;
+  if(m){ h = +m[1]; const ap = (m[2] || m[4]).toLowerCase(); if(ap === 'pm' && h < 12) h += 12; if(ap === 'am' && h === 12) h = 0; }
+  const d = new Date(b.class_date + 'T00:00:00'); d.setHours(h, 0, 0, 0); return d;
+}
+const fmtWhen = d => d.toLocaleString('en-US', {weekday:'short', month:'short', day:'numeric', hour:'numeric', minute:'2-digit'});
+function reminderUI(b){
+  const r = (ACCT.reminders || []).find(x => x.booking_id === b.booking_id);
+  if(r){
+    const at = new Date(r.remind_at), start = classStart(b), due = at <= new Date() && new Date() < start;
+    return `<span class="tag ${due ? 'High' : 'New'}" title="Class starts ${esc(fmtWhen(start))}">${due ? 'Reminder: class starts soon' : 'Reminder: ' + esc(fmtWhen(at))} (${esc(r.remind_before)} before)</span><button class="btn sm ghost" data-ics="${esc(b.booking_id)}" type="button">Add to calendar</button>`;
+  }
+  return `<select id="rm_${esc(b.booking_id)}" aria-label="Remind me" style="width:auto;padding:5px 8px">${RMD_OPTS.map(o => `<option>${o[0]} before</option>`).join('')}</select><button class="btn sm" data-remind="${esc(b.booking_id)}" type="button">Set reminder</button>`;
+}
+async function setReminder(id){
+  const b = ACCT.bookings.find(x => x.booking_id === id); if(!b) return;
+  const sel = $('#rm_' + id), label = (sel ? sel.value : '2 hours before').replace(' before', '');
+  const mins = (RMD_OPTS.find(o => o[0] === label) || RMD_OPTS[1])[1];
+  const start = classStart(b), at = new Date(start.getTime() - mins * 60000), c = PUB.Classes.find(x => x.class_id === b.class_id) || {};
+  const iso = d => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0,19);
+  await append('Reminders', {reminder_id:'', member_id:ACCT.m.member_id, booking_id:id, class_label:(c.class_name || b.class_id) + ' - ' + locName(b.class_location_id), class_date:b.class_date, remind_before:label, remind_at:iso(at), created_at:new Date().toISOString().slice(0,19)});
+  await load(); toast('Reminder set: ' + label + ' before'); render();
+}
+function downloadIcs(id){
+  const b = ACCT.bookings.find(x => x.booking_id === id); if(!b) return;
+  const c = PUB.Classes.find(x => x.class_id === b.class_id) || {}, s = classStart(b), e = new Date(s.getTime() + 3600000);
+  const f = d => d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0') + 'T' + String(d.getHours()).padStart(2,'0') + String(d.getMinutes()).padStart(2,'0') + '00';
+  const ics = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Riverside Fitness//EN','BEGIN:VEVENT','UID:' + id + '@riverside-fitness','DTSTAMP:' + f(new Date()),'DTSTART:' + f(s),'DTEND:' + f(e),'SUMMARY:' + (c.class_name || 'Class') + ' - Riverside Fitness','LOCATION:' + locName(b.class_location_id),'BEGIN:VALARM','TRIGGER:-PT30M','ACTION:DISPLAY','DESCRIPTION:Class reminder','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([ics], {type:'text/calendar'})); a.download = 'riverside-class.ics'; document.body.appendChild(a); a.click(); a.remove();
 }
 async function cancelBooking(id){
   if(LIVE){
@@ -208,7 +242,7 @@ function viewAccount(){
      <div class="bar" style="grid-template-columns:1fr"><span class="t"><i style="width:${Math.min(100,100*n/goal)}%"></i></span></div><p class="note">${esc(msg)}</p>
      <button class="btn" data-v="book" type="button">Book a class</button></div>
    <div class="card"><h3>Upcoming classes</h3>
-     ${up.map(b=>{const c=PUB.Classes.find(x=>x.class_id===b.class_id)||{};return `<div class="bar" style="grid-template-columns:1fr auto;margin:10px 0"><span><b>${esc(c.class_name||b.class_id)}</b> <span class="tag ${b.status==='Waitlisted'?'Medium':'Low'}">${esc(b.status)}</span><br><small>${esc(new Date(b.class_date+'T12:00:00').toDateString())} - ${esc(locName(b.class_location_id))}</small></span><button class="btn sm ghost" data-cancel="${esc(b.booking_id)}" type="button">Cancel</button></div>`}).join('') || '<div class="empty">No upcoming classes.</div>'}
+     ${up.map(b=>{const c=PUB.Classes.find(x=>x.class_id===b.class_id)||{};return `<div class="bar" style="display:block;margin:14px 0;padding-bottom:12px;border-bottom:1px solid var(--line,#dbe3e7)"><span><b>${esc(c.class_name||b.class_id)}</b> <span class="tag ${b.status==='Waitlisted'?'Medium':'Low'}">${esc(b.status)}</span><br><small>${esc(new Date(b.class_date+'T12:00:00').toDateString())} - ${esc(locName(b.class_location_id))}</small></span><span style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-start;align-items:center;margin-top:10px">${reminderUI(b)}<button class="btn sm ghost" data-cancel="${esc(b.booking_id)}" type="button">Cancel</button></span></div>`}).join('') || '<div class="empty">No upcoming classes.</div>'}
    </div>
    <div class="card"><h3>Membership payment</h3>${(()=>{const pd=paidOf(ACCT.payments), legacy=!ACCT.m.created_at; if(pd) return `<span class="tag Low">Paid</span><p class="note">${money(pd.amount_usd)} by ${esc(pd.method)}<br>Receipt ${esc(pd.receipt_no||'-')} on ${esc(String(pd.payment_date).slice(0,10))}</p>`; if(legacy) return '<span class="tag x">Paid</span><p class="note">Existing member, paid before the new app.</p>'; return `<span class="tag Medium">Payment pending</span><p class="note">Your first payment of ${money(ACCT.m.monthly_fee_usd)} is not complete yet.</p><button class="btn sm" id="payNow" type="button">Pay now</button>`;})()}</div>
    <div class="card"><h3>Recent visits</h3>${ACCT.checkins.slice().reverse().map(c=>{const k=PUB.Classes.find(x=>x.class_id===c.class_id)||{};return `<div class="note">${esc(String(c.checkin_date).slice(0,10))} - ${esc(k.class_name||c.class_id)} - ${esc(locName(c.location_id))}</div>`}).join('') || '<div class="empty">No visits yet.</div>'}</div>
@@ -291,7 +325,7 @@ async function doPayNow(){
 function render(){
   $('#view').innerHTML = ({login:viewLogin, join:viewJoin, pay:viewPay, account:viewAccount, book:viewBook})[view]();
   if(view==='book') fillBook();
-  if(view==='account' && window.RFKPI) RFKPI.decorateAccount();
+  if((view==='account' || view==='book') && window.RFKPI) RFKPI.decorateAccount();
 }
 
 /* ---- actions ---- */
@@ -329,6 +363,8 @@ document.addEventListener('click', async e => {
   const a = e.target.closest('a[data-v]'); if(a){ e.preventDefault(); return go(a.dataset.v); }
   const b = e.target.closest('button'); if(!b) return;
   if(b.dataset.v) return go(b.dataset.v);
+  if(b.dataset.remind) return guard(()=>setReminder(b.dataset.remind), '#view');
+  if(b.dataset.ics) return downloadIcs(b.dataset.ics);
   if(b.dataset.rate) return guard(()=>RFKPI.submitRating(b), '#view');
   if(b.dataset.cancel) return guard(async()=>{ const bk = ACCT.bookings.find(x=>x.booking_id===b.dataset.cancel)||{}; await cancelBooking(b.dataset.cancel); await load(); window.__rate = {ref:b.dataset.cancel, loc:bk.class_location_id||''}; toast('Booking cancelled'); render(); }, '#view');
   switch(b.id){
